@@ -96,7 +96,7 @@ export class Player extends Phaser.GameObjects.Container {
 
     if (transformed) {
       this.humanMaxHp = this.stats.maxHp;
-      this.bodySprite.stop().setTexture('player_titan_art').setDisplaySize(124, 124).setY(-5);
+      this.bodySprite.stop().setTexture('player_titan_walk', 0).setDisplaySize(124, 124).setY(-5);
       this.classRing.setDisplaySize(78, 28).setFillStyle(0xff5a32, 0.38);
       this.shadowSprite.setDisplaySize(82, 25).setY(38);
       this.stats.maxHp = this.humanMaxHp + 400;
@@ -124,11 +124,10 @@ export class Player extends Phaser.GameObjects.Container {
     }
 
     if (this.isTransformed) {
-      this.bodySprite.stop();
       if (vx !== 0) this.bodySprite.setFlipX(vx > 0);
       const moving = vx !== 0 || vy !== 0;
-      this.bodySprite.setY(-5 + Math.sin(this.scene.time.now / (moving ? 85 : 380)) * (moving ? 2 : 0.8));
-      this.bodySprite.setAngle(moving ? Math.sin(this.scene.time.now / 150) * 1.1 : 0);
+      if (moving) this.bodySprite.setY(-5).setAngle(0).play('player_titan_running', true);
+      else this.bodySprite.stop().setFrame(0).setY(-5).setAngle(0);
       return;
     }
 

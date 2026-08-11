@@ -13,7 +13,8 @@ export class Titan extends Phaser.GameObjects.Container {
   stunnedTimer = 0;
   tauntedTimer = 0;
 
-  private bodySprite!: Phaser.GameObjects.Image;
+  private bodySprite!: Phaser.GameObjects.Sprite;
+  private walkAnimationKey = 'titan_normal_walking';
   private napeIndicator!: Phaser.GameObjects.Ellipse;
   private shadowSprite!: Phaser.GameObjects.Ellipse;
   private hpBar!: Phaser.GameObjects.Graphics;
@@ -41,12 +42,13 @@ export class Titan extends Phaser.GameObjects.Container {
   private createVisuals(): void {
     const d = this.monsterData;
     this.shadowSprite = this.scene.add.ellipse(0, d.height * 0.36, d.width * 0.85, d.width * 0.25, 0x000000, 0.38);
-    const texture = d.id === 'titan_aberrant'
-      ? 'titan_aberrant_art'
+    const visual = d.id === 'titan_aberrant'
+      ? { texture: 'titan_aberrant_walk', animation: 'titan_aberrant_walking' }
       : d.id === 'titan_colossal'
-        ? 'titan_colossal_art'
-        : 'titan_normal_art';
-    this.bodySprite = this.scene.add.image(0, 0, texture)
+        ? { texture: 'titan_colossal_walk', animation: 'titan_colossal_walking' }
+        : { texture: 'titan_normal_walk', animation: 'titan_normal_walking' };
+    this.walkAnimationKey = visual.animation;
+    this.bodySprite = this.scene.add.sprite(0, 0, visual.texture, 0)
       .setDisplaySize(d.width * 1.16, d.height * 1.16);
     this.napeIndicator = this.scene.add.ellipse(0, -d.height * 0.27, d.boss ? 18 : 10, d.boss ? 18 : 10, 0xff3b1f, 0.95)
       .setStrokeStyle(2, 0xffd27a, 0.85);
@@ -90,7 +92,7 @@ export class Titan extends Phaser.GameObjects.Container {
     const damage = Math.floor(Math.max(1, amount * mult - this.monsterData.defense));
     this.hp = Math.max(0, this.hp - damage);
     this.drawHpBar();
-    this.bodySprite.setTintFill(0xffffff);
+    this.bodySprite.setTint(0xff9b86);
     this.scene.time.delayedCall(100, () => {
       if (this.state !== 'dead') {
         if (this.state === 'stunned') this.bodySprite.setTint(0x6d72ba);
@@ -112,16 +114,27 @@ export class Titan extends Phaser.GameObjects.Container {
   private die(): void {
     this.state = 'dead';
     this.napeIndicator.setVisible(false);
+    this.hpBar.setVisible(false);
     this.body.setVelocity(0, 0);
     this.body.enable = false;
+    this.bodySprite.stop();
     this.scene.events.emit('titan_died', this);
     this.scene.tweens.add({
-      targets: this,
+      targets: this.bodySprite,
       alpha: 0,
+      y: 14,
       angle: 8,
-      duration: this.monsterData.boss ? 2200 : 1100,
-      delay: 500,
+      duration: this.monsterData.boss ? 1500 : 750,
+      delay: 260,
       onComplete: () => this.destroy()
+    });
+    this.scene.tweens.add({
+      targets: this.shadowSprite,
+      alpha: 0,
+      scaleX: 0.55,
+      scaleY: 0.55,
+      duration: 260,
+      delay: 180
     });
   }
 
@@ -131,6 +144,7 @@ export class Titan extends Phaser.GameObjects.Container {
     this.setDepth(this.y + 100);
 
     if (this.state === 'stunned') {
+      this.bodySprite.stop().setFrame(2);
       this.stunnedTimer -= dt;
       if (this.stunnedTimer <= 0) {
         this.state = 'idle';
@@ -150,12 +164,13 @@ export class Titan extends Phaser.GameObjects.Container {
       const angle = Phaser.Math.Angle.Between(this.x, this.y, playerX, playerY);
       this.body.setVelocity(Math.cos(angle) * this.monsterData.speed, Math.sin(angle) * this.monsterData.speed);
       this.bodySprite.setFlipX(Math.cos(angle) > 0);
-      this.bodySprite.setY(Math.sin(this.scene.time.now / 85) * 2);
-      this.bodySprite.setAngle(Math.sin(this.scene.time.now / 150) * 1.3);
+      this.bodySprite.setY(0).setAngle(0).play(this.walkAnimationKey, true);
+    } else if (this.state === 'attack') {
+      this.body.setVelocity(0, 0);
+      this.bodySprite.play(this.walkAnimationKey, true);
     } else {
       this.body.setVelocity(0, 0);
-      this.bodySprite.setY(Math.sin(this.scene.time.now / 420) * 0.8);
-      this.bodySprite.setAngle(0);
+      this.bodySprite.stop().setFrame(0).setY(0).setAngle(0);
     }
 
     this.attackCooldownTimer = Math.max(0, this.attackCooldownTimer - dt);
