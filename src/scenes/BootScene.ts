@@ -35,6 +35,17 @@ export class BootScene extends Phaser.Scene {
     this.load.spritesheet('npc', 'assets/characters/npc.png', { frameWidth: 64, frameHeight: 64 });
     this.load.spritesheet('titan_base', 'assets/characters/titan_base.png', { frameWidth: 64, frameHeight: 64 });
 
+    this.load.image('titan_normal_art', 'assets/titans/normal.png');
+    this.load.image('titan_aberrant_art', 'assets/titans/aberrant.png');
+    this.load.image('titan_colossal_art', 'assets/titans/colossal.png');
+    this.load.image('player_titan_art', 'assets/titans/player-assault.png');
+
+    this.load.image('splash_titan_shifter', 'assets/splashes/titan-shifter.webp');
+    this.load.image('splash_scout', 'assets/splashes/scout.webp');
+    this.load.image('splash_priest', 'assets/splashes/priest.webp');
+    this.load.image('splash_gunner', 'assets/splashes/gunner.webp');
+    this.load.image('splash_engineer', 'assets/splashes/engineer.webp');
+
     this.load.image('ui_frame', 'assets/ui/frame.svg');
     this.load.image('icon_fury', 'assets/ui/icon_fury.svg');
     this.load.image('icon_gun', 'assets/ui/icon_gun.svg');
@@ -60,15 +71,39 @@ export class BootScene extends Phaser.Scene {
     graphics.generateTexture('particle', 8, 8);
     graphics.clear();
 
-    graphics.fillStyle(0xa88b65, 1);
-    graphics.fillRect(0, 0, 32, 32);
-    graphics.lineStyle(1, 0x8f7454, 0.9);
-    graphics.lineBetween(0, 8, 32, 8);
-    graphics.lineBetween(0, 24, 32, 24);
-    graphics.lineBetween(8, 0, 8, 32);
-    graphics.lineBetween(24, 0, 24, 32);
-    graphics.generateTexture('stone_floor', 32, 32);
+    this.paintGroundTexture(graphics, 'stone_floor', 0xa9906c, 0x967c5c, 0xc2a982, [
+      [4, 7], [23, 5], [13, 19], [30, 27]
+    ]);
+    this.paintGroundTexture(graphics, 'field_ground', 0x3f642f, 0x315126, 0x557a3a, [
+      [5, 9], [21, 4], [12, 26], [29, 17], [38, 30], [54, 10]
+    ]);
+    this.paintGroundTexture(graphics, 'forest_ground', 0x203d29, 0x172e20, 0x31563a, [
+      [7, 11], [26, 5], [15, 29], [43, 19], [57, 37]
+    ]);
+    this.paintGroundTexture(graphics, 'path_ground', 0x73583f, 0x5f4734, 0x8a6b4b, [
+      [8, 6], [25, 13], [13, 33], [39, 26], [55, 8]
+    ]);
     graphics.destroy();
+  }
+
+  private paintGroundTexture(
+    graphics: Phaser.GameObjects.Graphics,
+    key: string,
+    base: number,
+    shade: number,
+    highlight: number,
+    details: number[][]
+  ): void {
+    graphics.clear();
+    graphics.fillStyle(base, 1).fillRect(0, 0, 64, 64);
+    graphics.fillStyle(shade, 0.32).fillRect(0, 31, 64, 2);
+    graphics.fillStyle(highlight, 0.34).fillRect(0, 0, 64, 1);
+    details.forEach(([x, y], index) => {
+      graphics.fillStyle(index % 2 ? shade : highlight, index % 2 ? 0.54 : 0.5);
+      graphics.fillRect(x, y, index % 3 === 0 ? 5 : 3, 2);
+      if (key.includes('ground') && !key.includes('path')) graphics.fillRect(x + 1, y - 3, 1, 4);
+    });
+    graphics.generateTexture(key, 64, 64);
   }
 
   private createAnimations(): void {

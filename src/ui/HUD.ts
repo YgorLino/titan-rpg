@@ -1,4 +1,3 @@
-// src/ui/HUD.ts
 import Phaser from 'phaser';
 import { Player } from '../entities/Player';
 import { ClassData } from '../data/classes';
@@ -6,66 +5,44 @@ import { SkillSystem } from '../systems/SkillSystem';
 import { QuestSystem } from '../systems/QuestSystem';
 
 export class HUD {
-  private scene: Phaser.Scene;
   private player!: Player;
   private classData!: ClassData;
   private skillSystem!: SkillSystem;
   private questSystem!: QuestSystem;
 
-  // Main bars
-  private hpBarBg!: Phaser.GameObjects.Rectangle;
   private hpBarFill!: Phaser.GameObjects.Rectangle;
   private hpText!: Phaser.GameObjects.Text;
-  private resourceBarBg!: Phaser.GameObjects.Rectangle;
   private resourceBarFill!: Phaser.GameObjects.Rectangle;
   private resourceText!: Phaser.GameObjects.Text;
-  private xpBarBg!: Phaser.GameObjects.Rectangle;
   private xpBarFill!: Phaser.GameObjects.Rectangle;
   private levelText!: Phaser.GameObjects.Text;
-  private classLabel!: Phaser.GameObjects.Text;
   private goldText!: Phaser.GameObjects.Text;
   private bladeText!: Phaser.GameObjects.Text;
 
-  // Skill bar
-  private skillSlots: Phaser.GameObjects.Container[] = [];
-  private skillBgs: Phaser.GameObjects.Image[] = [];
   private skillIcons: Phaser.GameObjects.Image[] = [];
   private skillCooldownOverlays: Phaser.GameObjects.Rectangle[] = [];
   private skillCooldownTexts: Phaser.GameObjects.Text[] = [];
-  private skillKeyLabels: Phaser.GameObjects.Text[] = [];
   private skillNameLabels: Phaser.GameObjects.Text[] = [];
 
-  // Target frame
   private targetFrame!: Phaser.GameObjects.Container;
   private targetNameText!: Phaser.GameObjects.Text;
-  private targetHpBg!: Phaser.GameObjects.Rectangle;
   private targetHpFill!: Phaser.GameObjects.Rectangle;
   private targetHpText!: Phaser.GameObjects.Text;
 
-  // Quest panel
   private questPanel!: Phaser.GameObjects.Container;
   private questTitle!: Phaser.GameObjects.Text;
   private questObjectiveText!: Phaser.GameObjects.Text;
-
-  // Transform timer
+  private questCountText!: Phaser.GameObjects.Text;
   private transformTimerText!: Phaser.GameObjects.Text;
-
-  // Death screen
   private deathScreen!: Phaser.GameObjects.Container;
-
-  // Level up text
   private levelUpText!: Phaser.GameObjects.Text;
-
-  // Message log
   private messageLog: Phaser.GameObjects.Text[] = [];
 
   private readonly W: number;
   private readonly H: number;
-  private readonly SKILL_SIZE = 44;
-  private readonly SKILL_PAD = 6;
+  private readonly barWidth = 176;
 
-  constructor(scene: Phaser.Scene) {
-    this.scene = scene;
+  constructor(private scene: Phaser.Scene) {
     this.W = scene.scale.width;
     this.H = scene.scale.height;
   }
@@ -76,7 +53,7 @@ export class HUD {
     this.skillSystem = skillSystem;
     this.questSystem = questSystem;
 
-    this.createBottomPanel();
+    this.createPlayerPanel();
     this.createSkillBar();
     this.createTargetFrame();
     this.createQuestPanel();
@@ -84,250 +61,163 @@ export class HUD {
     this.createDeathScreen();
   }
 
-  private createBottomPanel(): void {
-    const panelH = 70;
-    const y = this.H - panelH;
+  private pin<T extends Phaser.GameObjects.GameObject & { setDepth(depth: number): T; setScrollFactor(x: number, y?: number): T }>(object: T, depth = 151): T {
+    return object.setDepth(depth).setScrollFactor(0);
+  }
 
-    // Panel background (Bottom Left)
-    const panelBg = this.scene.add.rectangle(0, y, 220, panelH, 0x1a1a24, 0.95).setOrigin(0, 0)
-      .setDepth(50).setScrollFactor(0);
-    // Border
-    this.scene.add.rectangle(0, y, 220, 2, 0x555577).setOrigin(0, 0).setDepth(50).setScrollFactor(0);
+  private createPlayerPanel(): void {
+    const x = 12;
+    const y = 12;
+    const panelW = 286;
+    const panelH = 76;
 
-    // Portrait Box
-    const px = 10, py = y + 10;
-    this.scene.add.rectangle(px, py, 48, 48, 0x333344).setOrigin(0, 0).setDepth(51).setScrollFactor(0);
-    this.scene.add.rectangle(px+2, py+2, 44, 44, 0x111111).setOrigin(0, 0).setDepth(51).setScrollFactor(0);
-    this.scene.add.image(px + 24, py + 24, 'player', 0).setDepth(52).setScrollFactor(0).setDisplaySize(42, 42);
+    this.pin(this.scene.add.rectangle(x, y, panelW, panelH, 0x0c1218, 0.94).setOrigin(0, 0)
+      .setStrokeStyle(2, 0x72634f));
+    this.pin(this.scene.add.rectangle(x + 2, y + 2, 5, panelH - 4, this.classData.color).setOrigin(0, 0), 152);
+    this.pin(this.scene.add.rectangle(x + 14, y + 13, 50, 50, 0x161d24).setOrigin(0, 0)
+      .setStrokeStyle(1, 0x94826a), 152);
+    this.pin(this.scene.add.image(x + 39, y + 38, 'player', 0).setDisplaySize(46, 46), 153);
 
-    // Class and Level Label
-    this.classLabel = this.scene.add.text(px + 56, py, `${this.player.rank} • LV 1`, {
-      fontSize: '10px',
-      color: '#' + this.classData.color.toString(16).padStart(6, '0'),
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 2
-    }).setDepth(51).setScrollFactor(0);
+    this.levelText = this.pin(this.scene.add.text(x + 74, y + 8, '', {
+      fontSize: '10px', color: `#${this.classData.color.toString(16).padStart(6, '0')}`,
+      fontStyle: 'bold', stroke: '#000000', strokeThickness: 2
+    }), 153);
+    this.goldText = this.pin(this.scene.add.text(x + panelW - 12, y + 8, '', {
+      fontSize: '9px', color: '#e7c36a', stroke: '#000000', strokeThickness: 2
+    }).setOrigin(1, 0), 153);
 
-    this.levelText = this.classLabel; // reusing reference for updates
+    const barX = x + 74;
+    const hpY = y + 25;
+    const resourceY = y + 43;
+    this.pin(this.scene.add.rectangle(barX, hpY, this.barWidth, 13, 0x260d0d).setOrigin(0, 0), 152);
+    this.hpBarFill = this.pin(this.scene.add.rectangle(barX + 1, hpY + 1, this.barWidth - 2, 11, 0xb62922).setOrigin(0, 0), 153);
+    this.hpText = this.pin(this.scene.add.text(barX + this.barWidth / 2, hpY + 6, '', {
+      fontSize: '8px', color: '#ffffff', stroke: '#000000', strokeThickness: 2
+    }).setOrigin(0.5), 154);
 
-    // HP Bar
-    const barX = px + 56;
-    const barY = py + 14;
-    const barW = 140;
-    const barH = 10;
+    const resourceColor = this.classData.resource.color;
+    const resourceBg = Phaser.Display.Color.IntegerToColor(resourceColor).darken(70).color;
+    this.pin(this.scene.add.rectangle(barX, resourceY, this.barWidth, 13, resourceBg).setOrigin(0, 0), 152);
+    this.resourceBarFill = this.pin(this.scene.add.rectangle(barX + 1, resourceY + 1, this.barWidth - 2, 11, resourceColor).setOrigin(0, 0), 153);
+    this.resourceText = this.pin(this.scene.add.text(barX + this.barWidth / 2, resourceY + 6, '', {
+      fontSize: '8px', color: '#ffffff', stroke: '#000000', strokeThickness: 2
+    }).setOrigin(0.5), 154);
 
-    this.hpBarBg = this.scene.add.rectangle(barX, barY, barW, barH, 0x330000).setOrigin(0, 0).setDepth(51).setScrollFactor(0);
-    this.hpBarFill = this.scene.add.rectangle(barX + 1, barY + 1, barW - 2, barH - 2, 0xCC0000).setOrigin(0, 0).setDepth(52).setScrollFactor(0);
-    this.hpText = this.scene.add.text(barX + barW / 2, barY + barH / 2, '', {
-      fontSize: '8px', color: '#FFFFFF', stroke: '#000000', strokeThickness: 2
-    }).setOrigin(0.5, 0.5).setDepth(53).setScrollFactor(0);
+    this.pin(this.scene.add.rectangle(barX, y + 62, this.barWidth, 4, 0x24210e).setOrigin(0, 0), 152);
+    this.xpBarFill = this.pin(this.scene.add.rectangle(barX, y + 62, 0, 4, 0xd4af37).setOrigin(0, 0), 153);
+    this.bladeText = this.pin(this.scene.add.text(x + panelW - 12, y + 65, '', {
+      fontSize: '8px', color: '#cceafa', stroke: '#000000', strokeThickness: 2
+    }).setOrigin(1, 1), 154);
 
-    // Resource Bar
-    const resY = barY + 12;
-    const resColor = this.classData.resource.color;
-    const resBgColor = Phaser.Display.Color.IntegerToColor(resColor).darken(50).color;
-
-    this.resourceBarBg = this.scene.add.rectangle(barX, resY, barW, barH, resBgColor).setOrigin(0, 0).setDepth(51).setScrollFactor(0);
-    this.resourceBarFill = this.scene.add.rectangle(barX + 1, resY + 1, barW - 2, barH - 2, resColor).setOrigin(0, 0).setDepth(52).setScrollFactor(0);
-    this.resourceText = this.scene.add.text(barX + barW / 2, resY + barH / 2, '', {
-      fontSize: '8px', color: '#FFFFFF', stroke: '#000000', strokeThickness: 2
-    }).setOrigin(0.5, 0.5).setDepth(53).setScrollFactor(0);
-
-    // XP Bar (thin)
-    const xpY = resY + 12;
-    this.xpBarBg = this.scene.add.rectangle(barX, xpY, barW, 4, 0x222200).setOrigin(0, 0).setDepth(51).setScrollFactor(0);
-    this.xpBarFill = this.scene.add.rectangle(barX + 1, xpY + 1, 0, 2, 0xCCAA00).setOrigin(0, 0).setDepth(52).setScrollFactor(0);
-
-    // Gold
-    this.goldText = this.scene.add.text(px + 56, xpY + 6, '💰 0', {
-      fontSize: '10px',
-      color: '#FFD700',
-      stroke: '#000000',
-      strokeThickness: 2
-    }).setDepth(51).setScrollFactor(0);
-
-    this.bladeText = this.scene.add.text(px + 108, xpY + 6, '', {
-      fontSize: '9px', color: '#d9edf5', stroke: '#000000', strokeThickness: 2
-    }).setDepth(51).setScrollFactor(0);
-
-    // Level up text
-    this.levelUpText = this.scene.add.text(this.W / 2, this.H / 2 - 60, '⬆ LEVEL UP! ⬆', {
-      fontSize: '28px',
-      color: '#FFDD44',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 4
-    }).setOrigin(0.5, 0.5).setDepth(200).setScrollFactor(0).setVisible(false);
+    this.levelUpText = this.pin(this.scene.add.text(this.W / 2, this.H / 2 - 60, '', {
+      fontSize: '28px', color: '#ffdd44', fontStyle: 'bold',
+      stroke: '#000000', strokeThickness: 5
+    }).setOrigin(0.5).setVisible(false), 250);
   }
 
   private createSkillBar(): void {
     const skills = this.classData.skills.slice(0, 3);
-    const keys = ['1', '2', '3'];
-    const totalW = skills.length * (this.SKILL_SIZE + this.SKILL_PAD) - this.SKILL_PAD;
+    const slotSize = 52;
+    const gap = 10;
+    const totalW = skills.length * slotSize + (skills.length - 1) * gap;
     const startX = this.W / 2 - totalW / 2;
     const y = this.H - 76;
 
-    for (let i = 0; i < skills.length; i++) {
-      const skill = skills[i];
-      const x = startX + i * (this.SKILL_SIZE + this.SKILL_PAD);
+    this.pin(this.scene.add.rectangle(this.W / 2, this.H - 43, totalW + 34, 78, 0x080d12, 0.9)
+      .setStrokeStyle(2, 0x675d52), 149);
+    this.pin(this.scene.add.text(this.W / 2, this.H - 88, 'HABILIDADES', {
+      fontSize: '8px', color: '#9c9181', letterSpacing: 2, stroke: '#000000', strokeThickness: 2
+    }).setOrigin(0.5), 151);
 
-      // Background Frame
-      const bg = this.scene.add.image(x + this.SKILL_SIZE / 2, y + this.SKILL_SIZE / 2, 'ui_frame')
-        .setDisplaySize(this.SKILL_SIZE + 4, this.SKILL_SIZE + 4)
-        .setDepth(51).setScrollFactor(0);
-      this.skillBgs.push(bg);
-
-      // Icon
-      const icon = this.scene.add.image(x + this.SKILL_SIZE / 2, y + this.SKILL_SIZE / 2, skill.icon)
-        .setDisplaySize(28, 28)
-        .setDepth(52).setScrollFactor(0);
+    skills.forEach((skill, i) => {
+      const x = startX + i * (slotSize + gap);
+      this.pin(this.scene.add.image(x + slotSize / 2, y + slotSize / 2, 'ui_frame')
+        .setDisplaySize(slotSize + 4, slotSize + 4), 151);
+      const icon = this.pin(this.scene.add.image(x + slotSize / 2, y + slotSize / 2, skill.icon)
+        .setDisplaySize(33, 33), 152);
       this.skillIcons.push(icon);
-
-      // Cooldown overlay
-      const cdOverlay = this.scene.add.rectangle(x + 1, y + 1, this.SKILL_SIZE - 2, this.SKILL_SIZE - 2, 0x000000, 0)
-        .setOrigin(0, 0).setDepth(53).setScrollFactor(0);
-      this.skillCooldownOverlays.push(cdOverlay);
-
-      // Cooldown text
-      const cdText = this.scene.add.text(x + this.SKILL_SIZE / 2, y + this.SKILL_SIZE / 2, '', {
-        fontSize: '14px',
-        color: '#FFFFFF',
-        fontStyle: 'bold',
-        stroke: '#000000',
-        strokeThickness: 3
-      }).setOrigin(0.5, 0.5).setDepth(54).setScrollFactor(0);
-      this.skillCooldownTexts.push(cdText);
-
-      // Key label
-      const keyLabel = this.scene.add.text(x + 4, y + 3, keys[i], {
-        fontSize: '9px',
-        color: '#AAAAFF',
-        stroke: '#000000',
-        strokeThickness: 2
-      }).setDepth(55).setScrollFactor(0);
-      this.skillKeyLabels.push(keyLabel);
-
-      // Skill name below slot
-      const nameLabel = this.scene.add.text(x + this.SKILL_SIZE / 2, y + this.SKILL_SIZE + 3, skill.name, {
-        fontSize: '7px',
-        color: '#AAAACC',
-        stroke: '#000000',
-        strokeThickness: 1,
-        align: 'center',
-        wordWrap: { width: this.SKILL_SIZE + 10 }
-      }).setOrigin(0.5, 0).setDepth(51).setScrollFactor(0);
-      this.skillNameLabels.push(nameLabel);
-    }
+      this.skillCooldownOverlays.push(this.pin(this.scene.add.rectangle(x + 2, y + 2, slotSize - 4, slotSize - 4, 0x000000, 0)
+        .setOrigin(0, 0), 153));
+      this.skillCooldownTexts.push(this.pin(this.scene.add.text(x + slotSize / 2, y + slotSize / 2, '', {
+        fontSize: '14px', color: '#ffffff', fontStyle: 'bold', stroke: '#000000', strokeThickness: 3
+      }).setOrigin(0.5), 154));
+      this.pin(this.scene.add.text(x + 5, y + 4, `${i + 1}`, {
+        fontSize: '10px', color: '#b9c7e8', fontStyle: 'bold', stroke: '#000000', strokeThickness: 2
+      }), 155);
+      this.skillNameLabels.push(this.pin(this.scene.add.text(x + slotSize / 2, y + slotSize + 3, skill.name, {
+        fontSize: '7px', color: '#e0d8cd', align: 'center',
+        stroke: '#000000', strokeThickness: 2, wordWrap: { width: slotSize + 18 }
+      }).setOrigin(0.5, 0), 155));
+    });
   }
 
   updateSkillBarForTransform(transformed: boolean): void {
-    const skills = transformed
-      ? this.player.classData.skills.slice(3, 6) // titan skills
-      : this.player.classData.skills.slice(0, 3); // human skills
-
-    for (let i = 0; i < Math.min(skills.length, this.skillIcons.length); i++) {
-      const skill = skills[i];
-      this.skillIcons[i].setTexture(skill.icon);
-      this.skillNameLabels[i].setText(skill.name);
-    }
+    const skills = transformed ? this.player.classData.skills.slice(3, 6) : this.player.classData.skills.slice(0, 3);
+    skills.forEach((skill, i) => {
+      this.skillIcons[i]?.setTexture(skill.icon);
+      this.skillNameLabels[i]?.setText(skill.name);
+    });
   }
 
   private createTargetFrame(): void {
-    this.targetFrame = this.scene.add.container(this.W - 220, 10)
-      .setDepth(55).setScrollFactor(0).setVisible(false);
-
-    const bg = this.scene.add.image(100, 24, 'ui_frame').setDisplaySize(200, 48);
-    this.targetFrame.add([bg]);
-
-    const label = this.scene.add.text(6, 4, 'ALVO', {
-      fontSize: '8px', color: '#CC4444', fontStyle: 'bold'
-    });
-    this.targetNameText = this.scene.add.text(6, 14, '', {
-      fontSize: '11px', color: '#FFDDDD', fontStyle: 'bold'
-    });
-    this.targetHpBg = this.scene.add.rectangle(6, 30, 188, 12, 0x440000).setOrigin(0, 0);
-    this.targetHpFill = this.scene.add.rectangle(7, 31, 186, 10, 0xCC2222).setOrigin(0, 0);
-    this.targetHpText = this.scene.add.text(100, 36, '', {
-      fontSize: '8px', color: '#FFFFFF', stroke: '#000000', strokeThickness: 2
-    }).setOrigin(0.5, 0.5);
-
-    this.targetFrame.add([label, this.targetNameText, this.targetHpBg, this.targetHpFill, this.targetHpText]);
+    this.targetFrame = this.scene.add.container(this.W - 372, 12).setDepth(158).setScrollFactor(0).setVisible(false);
+    const bg = this.scene.add.rectangle(0, 0, 218, 57, 0x0c1218, 0.94).setOrigin(0, 0).setStrokeStyle(2, 0x84473e);
+    const label = this.scene.add.text(9, 7, 'ALVO', { fontSize: '8px', color: '#d65a4d', fontStyle: 'bold', letterSpacing: 2 });
+    this.targetNameText = this.scene.add.text(9, 20, '', { fontSize: '10px', color: '#ffe5df', fontStyle: 'bold' });
+    this.scene.add.rectangle(9, 39, 200, 10, 0x3a1010).setOrigin(0, 0);
+    this.targetHpFill = this.scene.add.rectangle(10, 40, 198, 8, 0xc73228).setOrigin(0, 0);
+    this.targetHpText = this.scene.add.text(109, 44, '', {
+      fontSize: '7px', color: '#ffffff', stroke: '#000000', strokeThickness: 2
+    }).setOrigin(0.5);
+    this.targetFrame.add([bg, label, this.targetNameText, this.targetHpFill, this.targetHpText]);
   }
 
   private createQuestPanel(): void {
-    this.questPanel = this.scene.add.container(10, 10)
-      .setDepth(55).setScrollFactor(0).setVisible(false);
-
-    const bg = this.scene.add.image(100, 60, 'ui_frame').setDisplaySize(200, 120);
-    this.questPanel.add([bg]);
-
-    const label = this.scene.add.text(6, 4, 'MISSÕES ATIVAS', {
-      fontSize: '9px', color: '#FFAA00', fontStyle: 'bold'
+    this.questPanel = this.scene.add.container(12, 98).setDepth(156).setScrollFactor(0).setVisible(false);
+    const bg = this.scene.add.rectangle(0, 0, 286, 112, 0x0c1218, 0.92).setOrigin(0, 0).setStrokeStyle(2, 0x665943);
+    const accent = this.scene.add.rectangle(0, 0, 5, 112, 0xc99838).setOrigin(0, 0);
+    const label = this.scene.add.text(14, 10, 'MISSÃO RASTREADA', {
+      fontSize: '8px', color: '#c69b49', fontStyle: 'bold', letterSpacing: 2
     });
-    this.questTitle = this.scene.add.text(6, 18, '', {
-      fontSize: '9px', color: '#FFDD88', fontStyle: 'bold'
+    this.questCountText = this.scene.add.text(274, 10, '', { fontSize: '8px', color: '#8d8a84' }).setOrigin(1, 0);
+    this.questTitle = this.scene.add.text(14, 31, '', {
+      fontSize: '10px', color: '#ffe0a1', fontStyle: 'bold', wordWrap: { width: 255 }
     });
-    this.questObjectiveText = this.scene.add.text(6, 32, '', {
-      fontSize: '9px', color: '#CCCCCC',
-      wordWrap: { width: 188 }
+    this.questObjectiveText = this.scene.add.text(14, 55, '', {
+      fontSize: '9px', color: '#d7d4ce', lineSpacing: 4, wordWrap: { width: 255 }
     });
-
-    this.questPanel.add([label, this.questTitle, this.questObjectiveText]);
+    this.questPanel.add([bg, accent, label, this.questCountText, this.questTitle, this.questObjectiveText]);
   }
 
   private createTransformTimer(): void {
-    this.transformTimerText = this.scene.add.text(this.W / 2, 14, '', {
-      fontSize: '14px',
-      color: '#FF4400',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 3,
-      align: 'center'
-    }).setOrigin(0.5, 0).setDepth(60).setScrollFactor(0).setVisible(false);
+    this.transformTimerText = this.pin(this.scene.add.text(this.W / 2, 78, '', {
+      fontSize: '12px', color: '#ff6946', fontStyle: 'bold',
+      stroke: '#000000', strokeThickness: 4, backgroundColor: '#180b08', padding: { x: 12, y: 6 }
+    }).setOrigin(0.5, 0).setVisible(false), 160);
   }
 
   private createDeathScreen(): void {
-    this.deathScreen = this.scene.add.container(this.W / 2, this.H / 2)
-      .setDepth(300).setScrollFactor(0).setVisible(false);
-
-    const overlay = this.scene.add.rectangle(0, 0, this.W, this.H, 0x000000, 0.7);
+    this.deathScreen = this.scene.add.container(this.W / 2, this.H / 2).setDepth(300).setScrollFactor(0).setVisible(false);
+    const overlay = this.scene.add.rectangle(0, 0, this.W, this.H, 0x000000, 0.76);
     const title = this.scene.add.text(0, -30, 'VOCÊ MORREU', {
-      fontSize: '42px',
-      color: '#CC0000',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 5
-    }).setOrigin(0.5, 0.5);
-
+      fontSize: '42px', color: '#cc241d', fontStyle: 'bold', stroke: '#000000', strokeThickness: 6
+    }).setOrigin(0.5);
     const sub = this.scene.add.text(0, 30, 'Renascendo na cidade...', {
-      fontSize: '16px',
-      color: '#AAAAAA',
-      stroke: '#000000',
-      strokeThickness: 3
-    }).setOrigin(0.5, 0.5);
-
+      fontSize: '14px', color: '#c7c1b7', stroke: '#000000', strokeThickness: 3
+    }).setOrigin(0.5);
     this.deathScreen.add([overlay, title, sub]);
   }
 
   showDeathScreen(): void {
     this.deathScreen.setVisible(true);
-    this.scene.time.delayedCall(3000, () => {
-      this.deathScreen.setVisible(false);
-    });
+    this.scene.time.delayedCall(3000, () => this.deathScreen.setVisible(false));
   }
 
   showLevelUp(level: number): void {
     this.levelUpText.setText(`⬆ LEVEL ${level}! ⬆`).setVisible(true).setAlpha(1);
     this.scene.tweens.add({
-      targets: this.levelUpText,
-      y: this.H / 2 - 100,
-      alpha: 0,
-      duration: 2500,
-      ease: 'Cubic.easeOut',
-      onComplete: () => {
-        this.levelUpText.setVisible(false).setY(this.H / 2 - 60);
-      }
+      targets: this.levelUpText, y: this.H / 2 - 100, alpha: 0, duration: 2500, ease: 'Cubic.easeOut',
+      onComplete: () => this.levelUpText.setVisible(false).setY(this.H / 2 - 60)
     });
   }
 
@@ -338,114 +228,64 @@ export class HUD {
     }
     this.targetFrame.setVisible(true);
     this.targetNameText.setText(titan.name);
-    const pct = Math.max(0, titan.hp / titan.maxHp);
-    const maxW = 186;
-    this.targetHpFill.setSize(Math.max(0, maxW * pct), 10);
+    const pct = Phaser.Math.Clamp(titan.hp / titan.maxHp, 0, 1);
+    this.targetHpFill.setSize(198 * pct, 8);
     this.targetHpText.setText(`${Math.ceil(titan.hp)} / ${titan.maxHp}`);
   }
 
-  addMessage(text: string, color: string = '#FFFFFF'): void {
-    const y = this.H - 120 - this.messageLog.length * 16;
-    const msg = this.scene.add.text(12, y, text, {
-      fontSize: '10px',
-      color,
-      stroke: '#000000',
-      strokeThickness: 2
-    }).setDepth(60).setScrollFactor(0).setAlpha(1);
-
+  addMessage(text: string, color = '#ffffff'): void {
+    const msg = this.pin(this.scene.add.text(14, this.H - 102 - this.messageLog.length * 16, text, {
+      fontSize: '9px', color, stroke: '#000000', strokeThickness: 3,
+      backgroundColor: '#080d1299', padding: { x: 5, y: 2 }
+    }), 160);
     this.messageLog.push(msg);
-    if (this.messageLog.length > 5) {
-      const old = this.messageLog.shift();
-      old?.destroy();
-    }
-
-    this.scene.time.delayedCall(4000, () => {
-      this.scene.tweens.add({
-        targets: msg,
-        alpha: 0,
-        duration: 1000,
-        onComplete: () => {
-          msg.destroy();
-          const idx = this.messageLog.indexOf(msg);
-          if (idx >= 0) this.messageLog.splice(idx, 1);
-        }
-      });
-    });
+    if (this.messageLog.length > 4) this.messageLog.shift()?.destroy();
+    this.scene.time.delayedCall(4000, () => this.scene.tweens.add({
+      targets: msg, alpha: 0, duration: 800,
+      onComplete: () => {
+        msg.destroy();
+        const index = this.messageLog.indexOf(msg);
+        if (index >= 0) this.messageLog.splice(index, 1);
+      }
+    }));
   }
 
   update(): void {
-    const s = this.player.stats;
+    const stats = this.player.stats;
+    const innerBarW = this.barWidth - 2;
+    const hpPct = Phaser.Math.Clamp(stats.hp / stats.maxHp, 0, 1);
+    const resourcePct = Phaser.Math.Clamp(stats.resource / stats.maxResource, 0, 1);
+    const xpPct = stats.level >= 10 ? 1 : Phaser.Math.Clamp(stats.xp / stats.xpToNext, 0, 1);
 
-    // HP bar
-    const hpPct = s.hp / s.maxHp;
-    const barW = 138; // 140 - 2
-    this.hpBarFill.setSize(Math.max(0, barW * hpPct), 8);
-    const hpColor = hpPct > 0.5 ? 0xCC0000 : hpPct > 0.25 ? 0xFF6600 : 0xFF0000;
-    this.hpBarFill.setFillStyle(hpColor);
-    this.hpText.setText(`HP: ${Math.ceil(s.hp)} / ${s.maxHp}`);
+    this.hpBarFill.setSize(innerBarW * hpPct, 11)
+      .setFillStyle(hpPct > 0.5 ? 0xb62922 : hpPct > 0.25 ? 0xe16b25 : 0xe33128);
+    this.hpText.setText(`VIDA  ${Math.ceil(stats.hp)} / ${stats.maxHp}`);
+    this.resourceBarFill.setSize(innerBarW * resourcePct, 11);
+    const resource = this.classData.resource.name.toUpperCase();
+    this.resourceText.setText(`${resource}  ${Math.floor(stats.resource)}${this.classData.id === 'titan_shifter' ? '%' : ` / ${stats.maxResource}`}`);
+    this.xpBarFill.setSize(this.barWidth * xpPct, 4);
+    this.levelText.setText(`${this.player.rank.toUpperCase()}  •  LV ${stats.level}`);
+    this.goldText.setText(`${stats.gold} MOEDAS`);
+    this.bladeText.setText(this.classData.id === 'scout' ? `LÂMINAS ${Math.ceil(this.player.blades)}%` : '');
 
-    // Resource bar
-    const resPct = s.resource / s.maxResource;
-    this.resourceBarFill.setSize(Math.max(0, barW * resPct), 8);
-    const resName = this.player.classData.resource.name;
-    const resVal = this.player.classData.id === 'titan_shifter'
-      ? `${resName}: ${Math.floor(s.resource)}%`
-      : `${resName}: ${Math.floor(s.resource)} / ${s.maxResource}`;
-    this.resourceText.setText(resVal);
+    const activeSkills = this.player.isTransformed ? this.classData.skills.slice(3, 6) : this.classData.skills.slice(0, 3);
+    activeSkills.forEach((skill, i) => {
+      const cooldown = this.skillSystem.getCooldown(skill.id);
+      const pct = skill.cooldown > 0 ? cooldown / skill.cooldown : 0;
+      this.skillCooldownOverlays[i]?.setFillStyle(0x000000, cooldown > 0 ? 0.78 * pct : 0);
+      this.skillCooldownTexts[i]?.setText(cooldown > 0 ? (cooldown < 10 ? cooldown.toFixed(1) : Math.ceil(cooldown).toString()) : '');
+    });
 
-    // XP bar
-    const xpPct = s.level >= 10 ? 1 : s.xp / s.xpToNext;
-    this.xpBarFill.setSize(Math.max(0, barW * xpPct), 2);
+    this.transformTimerText.setVisible(this.player.isTransformed);
+    if (this.player.isTransformed) this.transformTimerText.setText(`FORMA TITÃ  •  ${Math.ceil(this.player.transformTimer)}s`);
 
-    // Level
-    this.levelText.setText(`${this.player.rank} • LV ${s.level}`);
-
-    // Gold
-    this.goldText.setText(`💰 ${s.gold}`);
-    this.bladeText.setText(this.classData.id === 'scout' ? `⚔ ${Math.ceil(this.player.blades)}%` : '');
-
-    // Skill cooldowns
-    const activatedSkills = this.player.isTransformed
-      ? this.player.classData.skills.slice(3, 6)
-      : this.player.classData.skills.slice(0, 3);
-
-    for (let i = 0; i < Math.min(activatedSkills.length, this.skillCooldownOverlays.length); i++) {
-      const skill = activatedSkills[i];
-      const cd = this.skillSystem.getCooldown(skill.id);
-      const maxCd = skill.cooldown;
-
-      if (cd > 0 && maxCd > 0) {
-        const pct = cd / maxCd;
-        this.skillCooldownOverlays[i].setFillStyle(0x000000, 0.65 * pct);
-        this.skillCooldownTexts[i].setText(cd < 10 ? cd.toFixed(1) : Math.ceil(cd).toString());
-      } else {
-        this.skillCooldownOverlays[i].setFillStyle(0x000000, 0);
-        this.skillCooldownTexts[i].setText('');
-      }
-    }
-
-    // Transform timer
-    if (this.player.isTransformed) {
-      this.transformTimerText.setVisible(true);
-      this.transformTimerText.setText(`⚡ FORMA TITÃ: ${Math.ceil(this.player.transformTimer)}s ⚡`);
-    } else {
-      this.transformTimerText.setVisible(false);
-    }
-
-    // Quest panel
     const activeQuests = this.questSystem.getActiveQuests();
+    this.questPanel.setVisible(activeQuests.length > 0);
     if (activeQuests.length > 0) {
-      this.questPanel.setVisible(true);
-      let titles = '';
-      let objectives = '';
-      activeQuests.forEach((q, idx) => {
-        titles += `▶ ${q.data.name}\n\n\n`; // spacing for objectives
-        objectives += `\n${this.questSystem.getObjectiveText(q.data.id)}\n\n`;
-      });
-      this.questTitle.setText(titles);
-      this.questObjectiveText.setText(objectives);
-    } else {
-      this.questPanel.setVisible(false);
+      const tracked = activeQuests[0];
+      this.questTitle.setText(tracked.data.name);
+      this.questObjectiveText.setText(this.questSystem.getObjectiveText(tracked.data.id));
+      this.questCountText.setText(activeQuests.length > 1 ? `+${activeQuests.length - 1}` : '');
     }
   }
 }
