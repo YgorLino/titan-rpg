@@ -1,4 +1,3 @@
-// src/entities/Titan.ts
 import Phaser from 'phaser';
 import { MonsterData } from '../data/monsters';
 
@@ -8,17 +7,16 @@ export class Titan extends Phaser.GameObjects.Container {
   monsterData: MonsterData;
   hp: number;
   maxHp: number;
-  facing: number = 180;
+  facing = 90;
   state: TitanState = 'idle';
-  attackCooldownTimer: number = 0;
-  stunnedTimer: number = 0;
-  tauntedTimer: number = 0;
+  attackCooldownTimer = 0;
+  stunnedTimer = 0;
+  tauntedTimer = 0;
 
-  private bodySprite!: Phaser.GameObjects.Image;
+  private bodySprite!: Phaser.GameObjects.Sprite;
   private napeIndicator!: Phaser.GameObjects.Ellipse;
   private shadowSprite!: Phaser.GameObjects.Ellipse;
   private hpBar!: Phaser.GameObjects.Graphics;
-
   declare body: Phaser.Physics.Arcade.Body;
 
   constructor(scene: Phaser.Scene, x: number, y: number, data: MonsterData) {
@@ -30,184 +28,129 @@ export class Titan extends Phaser.GameObjects.Container {
     this.createVisuals();
     scene.add.existing(this);
     scene.physics.add.existing(this);
+    this.setSize(data.width, data.height * 0.62);
+    this.setInteractive(new Phaser.Geom.Rectangle(-data.width / 2, -data.height / 2, data.width, data.height), Phaser.Geom.Rectangle.Contains);
 
     if (this.body instanceof Phaser.Physics.Arcade.Body) {
-      this.body.setSize(data.width * 0.8, data.height * 0.5);
-      this.body.setOffset(-data.width * 0.4, -data.height * 0.25);
+      this.body.setSize(data.width * 0.62, data.height * 0.35);
+      this.body.setOffset(-data.width * 0.31, data.height * 0.05);
+      this.body.setCollideWorldBounds(true);
     }
   }
 
   private createVisuals(): void {
     const d = this.monsterData;
-
-    // Shadow
-    this.shadowSprite = this.scene.add.ellipse(0, d.height * 0.38, d.width * 1.1, d.width * 0.35, 0x000000, 0.35);
-    this.add(this.shadowSprite);
-
-    // Body Sprite
-    this.bodySprite = this.scene.add.image(0, 0, d.id);
-    this.bodySprite.setDisplaySize(d.width, d.height);
-    this.add(this.bodySprite);
-
-    // Nape - glowing vulnerability spot
-    this.napeIndicator = this.scene.add.ellipse(0, -d.height * 0.26, 10, 10, 0xFF3300, 0.9);
-    this.add(this.napeIndicator);
-
-    // HP bar
+    this.shadowSprite = this.scene.add.ellipse(0, d.height * 0.36, d.width * 0.85, d.width * 0.25, 0x000000, 0.38);
+    this.bodySprite = this.scene.add.sprite(0, 0, 'titan_base', 0)
+      .setDisplaySize(d.width, d.height).setTint(d.color);
+    this.napeIndicator = this.scene.add.ellipse(0, -d.height * 0.27, d.boss ? 18 : 10, d.boss ? 18 : 10, 0xff3b1f, 0.95)
+      .setStrokeStyle(2, 0xffd27a, 0.85);
     this.hpBar = this.scene.add.graphics();
-    this.add(this.hpBar);
+    this.add([this.shadowSprite, this.bodySprite, this.napeIndicator, this.hpBar]);
     this.drawHpBar();
   }
 
   private drawHpBar(): void {
     this.hpBar.clear();
-    const w = this.monsterData.width + 12;
-    const h = 6;
-    const x = -w / 2;
-    const y = -this.monsterData.height * 0.58 - 14;
-
-    this.hpBar.fillStyle(0x222222, 0.85);
-    this.hpBar.fillRect(x, y, w, h);
-
-    const pct = this.hp / this.maxHp;
-    const color = pct > 0.5 ? 0x00CC00 : pct > 0.25 ? 0xFFAA00 : 0xFF0000;
-    this.hpBar.fillStyle(color, 1);
-    this.hpBar.fillRect(x, y, w * pct, h);
+    const w = Math.max(64, this.monsterData.width + 12);
+    const y = -this.monsterData.height * 0.56 - 15;
+    this.hpBar.fillStyle(0x111111, 0.9).fillRect(-w / 2, y, w, 7);
+    const pct = Phaser.Math.Clamp(this.hp / this.maxHp, 0, 1);
+    const color = this.monsterData.boss ? 0xd62f24 : pct > 0.5 ? 0x4fae55 : pct > 0.25 ? 0xe3a832 : 0xd94636;
+    this.hpBar.fillStyle(color, 1).fillRect(-w / 2 + 1, y + 1, (w - 2) * pct, 5);
   }
 
-  updateFacing(targetX: number, targetY: number): void {
-    this.facing = Phaser.Math.RadToDeg(
-      Phaser.Math.Angle.Between(this.x, this.y, targetX, targetY)
-    );
+  private turnTowards(targetX: number, targetY: number, delta: number): void {
+    const targetFacing = Phaser.Math.RadToDeg(Phaser.Math.Angle.Between(this.x, this.y, targetX, targetY));
+    this.facing = Phaser.Math.Angle.RotateTo(
+      Phaser.Math.DegToRad(this.facing), Phaser.Math.DegToRad(targetFacing), delta / 1000 * 2.2
+    ) * Phaser.Math.RAD_TO_DEG;
 
-    // Flip sprite if facing left
-    if (this.facing > 90 && this.facing < 270) {
-      this.bodySprite.setFlipX(true);
-    } else {
-      this.bodySprite.setFlipX(false);
-    }
-
-    // Move nape to back of head
     const napeRad = Phaser.Math.DegToRad(this.facing + 180);
-    const dist = this.monsterData.height * 0.26;
-    this.napeIndicator.setPosition(
-      Math.cos(napeRad) * dist,
-      Math.sin(napeRad) * dist - 2
-    );
+    const dist = this.monsterData.height * 0.27;
+    this.napeIndicator.setPosition(Math.cos(napeRad) * dist, Math.sin(napeRad) * dist - 2);
   }
 
   isAttackedFromBehind(attackerX: number, attackerY: number): boolean {
-    const angleToAttacker = Phaser.Math.RadToDeg(
-      Phaser.Math.Angle.Between(this.x, this.y, attackerX, attackerY)
-    );
-    // If attacker is behind (opposite direction of facing)
-    let diff = Math.abs(angleToAttacker - this.facing);
+    const angleToAttacker = Phaser.Math.RadToDeg(Phaser.Math.Angle.Between(this.x, this.y, attackerX, attackerY));
+    let diff = Math.abs(Phaser.Math.Angle.WrapDegrees(angleToAttacker - this.facing));
     if (diff > 180) diff = 360 - diff;
-    return diff > 120;
+    return diff > 115;
   }
 
-  takeDamage(amount: number, fromBehind: boolean = false, isNapeAttack: boolean = false): number {
+  takeDamage(amount: number, fromBehind = false, isNapeAttack = false): number {
     if (this.state === 'dead') return 0;
-
-    let mult = 1.0;
-    if (fromBehind && !isNapeAttack) mult = this.monsterData.weaknessMultiplier;
-    if (isNapeAttack && fromBehind) mult = 4.0;
-    else if (isNapeAttack && !fromBehind) mult = 0.3; // Nape from front barely hurts
-
-    const dmg = Math.floor(Math.max(1, amount * mult));
-    this.hp = Math.max(0, this.hp - dmg);
+    let mult = fromBehind ? this.monsterData.weaknessMultiplier : 1;
+    if (isNapeAttack) mult = fromBehind ? 4 : 0.35;
+    const damage = Math.floor(Math.max(1, amount * mult - this.monsterData.defense));
+    this.hp = Math.max(0, this.hp - damage);
     this.drawHpBar();
-
-    // Flash white
-    this.bodySprite.setTint(0xFFFFFF);
-    this.scene.time.delayedCall(120, () => {
-      if (this.state !== 'dead') {
-        this.bodySprite.clearTint();
-        if (this.state === 'stunned') {
-          this.bodySprite.setTint(0x6666CC);
-        }
-      }
+    this.bodySprite.setTintFill(0xffffff);
+    this.scene.time.delayedCall(100, () => {
+      if (this.state !== 'dead') this.bodySprite.setTint(this.state === 'stunned' ? 0x6d72ba : this.monsterData.color);
     });
-
-    if (this.hp <= 0) {
-      this.die();
-    }
-
-    return dmg;
+    if (this.hp <= 0) this.die();
+    return damage;
   }
 
   stun(duration: number): void {
-    if (this.state === 'dead') return;
+    if (this.state === 'dead' || this.monsterData.boss) return;
     this.state = 'stunned';
     this.stunnedTimer = duration;
-    this.bodySprite.setTint(0x6666CC);
-    if (this.body) this.body.setVelocity(0, 0);
+    this.bodySprite.stop().setTint(0x6d72ba);
+    this.body.setVelocity(0, 0);
   }
 
   private die(): void {
     this.state = 'dead';
-    this.setAlpha(0.35);
     this.napeIndicator.setVisible(false);
-    if (this.body) {
-      this.body.setVelocity(0, 0);
-      this.body.enable = false;
-    }
+    this.body.setVelocity(0, 0);
+    this.body.enable = false;
+    this.bodySprite.stop();
     this.scene.events.emit('titan_died', this);
-    this.scene.time.delayedCall(2500, () => {
-      this.scene.tweens.add({
-        targets: this,
-        alpha: 0,
-        duration: 1000,
-        onComplete: () => this.destroy()
-      });
+    this.scene.tweens.add({
+      targets: this,
+      alpha: 0,
+      angle: 8,
+      duration: this.monsterData.boss ? 2200 : 1100,
+      delay: 500,
+      onComplete: () => this.destroy()
     });
   }
 
   update(delta: number, playerX: number, playerY: number): void {
     if (this.state === 'dead') return;
     const dt = delta / 1000;
+    this.setDepth(this.y + 100);
 
     if (this.state === 'stunned') {
       this.stunnedTimer -= dt;
       if (this.stunnedTimer <= 0) {
         this.state = 'idle';
-        this.bodySprite.clearTint();
+        this.bodySprite.setTint(this.monsterData.color);
       }
       return;
     }
 
     const dist = Phaser.Math.Distance.Between(this.x, this.y, playerX, playerY);
+    this.tauntedTimer = Math.max(0, this.tauntedTimer - dt);
+    if (dist <= this.monsterData.attackRange) this.state = 'attack';
+    else if (dist <= this.monsterData.detectionRange || this.tauntedTimer > 0) this.state = 'chase';
+    else this.state = 'idle';
 
-    if (this.tauntedTimer > 0) {
-      this.tauntedTimer -= dt;
-      if (dist <= this.monsterData.attackRange) {
-        this.state = 'attack';
-      } else {
-        this.state = 'chase';
-      }
-    } else {
-      if (dist <= this.monsterData.attackRange) {
-        this.state = 'attack';
-      } else if (dist <= this.monsterData.detectionRange) {
-        this.state = 'chase';
-      } else {
-        this.state = 'idle';
-      }
-    }
-
-    this.updateFacing(playerX, playerY);
-
-    if (this.state === 'chase' && this.body) {
+    this.turnTowards(playerX, playerY, delta);
+    if (this.state === 'chase') {
       const angle = Phaser.Math.Angle.Between(this.x, this.y, playerX, playerY);
-      const spd = this.monsterData.speed;
-      this.body.setVelocity(Math.cos(angle) * spd, Math.sin(angle) * spd);
-    } else if (this.state !== 'chase' && this.body) {
+      this.body.setVelocity(Math.cos(angle) * this.monsterData.speed, Math.sin(angle) * this.monsterData.speed);
+      const horizontal = Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle));
+      const direction = horizontal ? (Math.cos(angle) < 0 ? 'left' : 'right') : (Math.sin(angle) < 0 ? 'up' : 'down');
+      this.bodySprite.play(`titan_base_${direction}`, true);
+    } else {
       this.body.setVelocity(0, 0);
+      this.bodySprite.stop();
     }
 
-    if (this.attackCooldownTimer > 0) {
-      this.attackCooldownTimer -= dt;
-    }
+    this.attackCooldownTimer = Math.max(0, this.attackCooldownTimer - dt);
   }
 
   canAttack(): boolean {

@@ -105,7 +105,7 @@ export class CombatSystem {
   }
 
   private createHitParticles(x: number, y: number, color: number): void {
-    const emitter = this.scene.add.particles(x, y, 'wood', {
+    const emitter = this.scene.add.particles(x, y, 'particle', {
       speed: { min: 50, max: 150 },
       angle: { min: 0, max: 360 },
       scale: { start: 0.5, end: 0 },

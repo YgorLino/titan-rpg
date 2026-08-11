@@ -24,6 +24,7 @@ export class HUD {
   private levelText!: Phaser.GameObjects.Text;
   private classLabel!: Phaser.GameObjects.Text;
   private goldText!: Phaser.GameObjects.Text;
+  private bladeText!: Phaser.GameObjects.Text;
 
   // Skill bar
   private skillSlots: Phaser.GameObjects.Container[] = [];
@@ -97,10 +98,10 @@ export class HUD {
     const px = 10, py = y + 10;
     this.scene.add.rectangle(px, py, 48, 48, 0x333344).setOrigin(0, 0).setDepth(51).setScrollFactor(0);
     this.scene.add.rectangle(px+2, py+2, 44, 44, 0x111111).setOrigin(0, 0).setDepth(51).setScrollFactor(0);
-    const portrait = this.scene.add.image(px + 24, py + 24, `player_${this.classData.id}`).setDepth(52).setScrollFactor(0).setDisplaySize(32, 48);
+    this.scene.add.image(px + 24, py + 24, 'player', 0).setDepth(52).setScrollFactor(0).setDisplaySize(42, 42);
 
     // Class and Level Label
-    this.classLabel = this.scene.add.text(px + 56, py, `LV 1 ${this.classData.name.toUpperCase()}`, {
+    this.classLabel = this.scene.add.text(px + 56, py, `${this.player.rank} • LV 1`, {
       fontSize: '10px',
       color: '#' + this.classData.color.toString(16).padStart(6, '0'),
       fontStyle: 'bold',
@@ -144,6 +145,10 @@ export class HUD {
       color: '#FFD700',
       stroke: '#000000',
       strokeThickness: 2
+    }).setDepth(51).setScrollFactor(0);
+
+    this.bladeText = this.scene.add.text(px + 108, xpY + 6, '', {
+      fontSize: '9px', color: '#d9edf5', stroke: '#000000', strokeThickness: 2
     }).setDepth(51).setScrollFactor(0);
 
     // Level up text
@@ -393,10 +398,11 @@ export class HUD {
     this.xpBarFill.setSize(Math.max(0, barW * xpPct), 2);
 
     // Level
-    this.levelText.setText(`LV ${s.level} ${this.classData.name.toUpperCase()}`);
+    this.levelText.setText(`${this.player.rank} • LV ${s.level}`);
 
     // Gold
     this.goldText.setText(`💰 ${s.gold}`);
+    this.bladeText.setText(this.classData.id === 'scout' ? `⚔ ${Math.ceil(this.player.blades)}%` : '');
 
     // Skill cooldowns
     const activatedSkills = this.player.isTransformed

@@ -162,7 +162,7 @@ export class SkillSystem {
         });
 
         // Smoke effect
-        const smoke = this.scene.add.particles(player.x, player.y, 'player_scout', { // reusing a texture for smoke
+        const smoke = this.scene.add.particles(player.x, player.y, 'particle', {
           speed: { min: 50, max: 200 },
           angle: { min: 0, max: 360 },
           scale: { start: 1, end: 0 },
@@ -233,6 +233,10 @@ export class SkillSystem {
         return true;
       }
       case 'spin_slash': {
+        if (!player.useBlades(12)) {
+          this.combat.showText(player.x, player.y - 30, 'Lâminas quebradas! [R]', '#ff6655');
+          return false;
+        }
         let hit = false;
         titans.forEach(t => {
           if (t.state !== 'dead') {
@@ -259,6 +263,10 @@ export class SkillSystem {
       case 'nape_slash': {
         const nearby = target ?? this.findNearestTitan(player, titans, 100);
         if (!nearby || nearby.state === 'dead') return false;
+        if (!player.useBlades(18)) {
+          this.combat.showText(player.x, player.y - 30, 'Lâminas quebradas! [R]', '#ff6655');
+          return false;
+        }
         const fromBehind = nearby.isAttackedFromBehind(player.x, player.y);
         // Use combat system to handle damage + damage numbers properly
         this.combat.playerAttacksTitan(player, nearby, true, 2.5);
@@ -288,7 +296,7 @@ export class SkillSystem {
     ).setLineWidth(2).setDepth(10).setOrigin(0, 0);
 
     // Gas burst effect
-    const particles = this.scene.add.particles(player.x, player.y, 'wood', {
+    const particles = this.scene.add.particles(player.x, player.y, 'particle', {
       speed: { min: 20, max: 100 },
       angle: { min: Phaser.Math.RadToDeg(angle + Math.PI) - 20, max: Phaser.Math.RadToDeg(angle + Math.PI) + 20 },
       scale: { start: 0.6, end: 0 },

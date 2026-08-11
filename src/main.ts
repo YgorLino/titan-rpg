@@ -1,10 +1,9 @@
 // src/main.ts
 import Phaser from 'phaser';
 import { BootScene } from './scenes/BootScene';
+import { TitleScene } from './scenes/TitleScene';
 import { CharacterCreationScene } from './scenes/CharacterCreationScene';
 import { WorldScene } from './scenes/WorldScene';
-import { VisualTestScene } from './scenes/VisualTestScene';
-import { AssetPreviewScene } from './scenes/AssetPreviewScene';
 
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,
@@ -21,7 +20,7 @@ const config: Phaser.Types.Core.GameConfig = {
       debug: false
     }
   },
-  scene: [BootScene, AssetPreviewScene, VisualTestScene, CharacterCreationScene, WorldScene],
+  scene: [BootScene, TitleScene, CharacterCreationScene, WorldScene],
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
