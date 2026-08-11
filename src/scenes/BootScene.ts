@@ -39,6 +39,10 @@ export class BootScene extends Phaser.Scene {
     this.load.image('titan_aberrant_art', 'assets/titans/aberrant.png');
     this.load.image('titan_colossal_art', 'assets/titans/colossal.png');
     this.load.image('player_titan_art', 'assets/titans/player-assault.png');
+    this.load.spritesheet('titan_normal_walk', 'assets/titans/normal-walk-v2.png', { frameWidth: 256, frameHeight: 256 });
+    this.load.spritesheet('titan_aberrant_walk', 'assets/titans/aberrant-walk-v2.png', { frameWidth: 256, frameHeight: 256 });
+    this.load.spritesheet('titan_colossal_walk', 'assets/titans/colossal-walk-v2.png', { frameWidth: 256, frameHeight: 256 });
+    this.load.spritesheet('player_titan_walk', 'assets/titans/player-assault-walk-v2.png', { frameWidth: 256, frameHeight: 256 });
 
     this.load.image('splash_titan_shifter', 'assets/splashes/titan-shifter.webp');
     this.load.image('splash_scout', 'assets/splashes/scout.webp');
@@ -125,6 +129,23 @@ export class BootScene extends Phaser.Scene {
             repeat: -1
           });
         }
+      });
+    });
+
+    const titanWalkCycles = [
+      { texture: 'titan_normal_walk', key: 'titan_normal_walking', frameRate: 6 },
+      { texture: 'titan_aberrant_walk', key: 'titan_aberrant_walking', frameRate: 10 },
+      { texture: 'titan_colossal_walk', key: 'titan_colossal_walking', frameRate: 4 },
+      { texture: 'player_titan_walk', key: 'player_titan_running', frameRate: 10 }
+    ];
+
+    titanWalkCycles.forEach(({ texture, key, frameRate }) => {
+      if (this.anims.exists(key)) return;
+      this.anims.create({
+        key,
+        frames: this.anims.generateFrameNumbers(texture, { start: 0, end: 3 }),
+        frameRate,
+        repeat: -1
       });
     });
   }
