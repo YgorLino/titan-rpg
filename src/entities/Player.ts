@@ -1,4 +1,3 @@
-// src/entities/Player.ts
 import Phaser from 'phaser';
 import { ClassData } from '../data/classes';
 import { getXpForNextLevel } from '../data/levels';
@@ -17,21 +16,34 @@ export interface PlayerStats {
   gold: number;
 }
 
+export interface PlayerSnapshot {
+  stats: PlayerStats;
+  blades: number;
+  x: number;
+  y: number;
+}
+
+const RANKS = [
+  'Recruta', 'Cadete', 'Cadete', 'Soldado', 'Soldado',
+  'Veterano', 'Veterano', 'Oficial', 'Oficial', 'Herói da Humanidade'
+];
+
 export class Player extends Phaser.GameObjects.Container {
   classData: ClassData;
   stats: PlayerStats;
-  facing: number = 180; // angle in degrees
-  isTransformed: boolean = false;
-  transformTimer: number = 0;
-  isDead: boolean = false;
-  isInvulnerable: boolean = false;
-  invulnerableTimer: number = 0;
+  facing = 90;
+  isTransformed = false;
+  transformTimer = 0;
+  isDead = false;
+  isInvulnerable = false;
+  invulnerableTimer = 0;
+  blades = 100;
+  readonly maxBlades = 100;
 
-  // Visual components
-  private bodySprite!: Phaser.GameObjects.Image;
+  private bodySprite!: Phaser.GameObjects.Sprite;
   private shadowSprite!: Phaser.GameObjects.Ellipse;
-
-  // Physics body reference
+  private classRing!: Phaser.GameObjects.Ellipse;
+  private humanMaxHp = 0;
   declare body: Phaser.Physics.Arcade.Body;
 
   constructor(scene: Phaser.Scene, x: number, y: number, classData: ClassData) {
@@ -48,83 +60,95 @@ export class Player extends Phaser.GameObjects.Container {
       level: 1,
       xp: 0,
       xpToNext: getXpForNextLevel(1),
-      resource: classData.resource.max,
+      resource: classData.id === 'titan_shifter' ? 0 : classData.resource.max,
       maxResource: classData.resource.max,
       gold: 0
     };
+    this.humanMaxHp = base.hp;
 
     this.createVisuals();
     scene.add.existing(this);
     scene.physics.add.existing(this);
+    this.setSize(30, 34);
 
     if (this.body instanceof Phaser.Physics.Arcade.Body) {
       this.body.setCollideWorldBounds(true);
       this.body.setSize(28, 28);
-      this.body.setOffset(-14, -14);
+      this.body.setOffset(-14, -7);
     }
   }
 
   private createVisuals(): void {
-    // Shadow
-    this.shadowSprite = this.scene.add.ellipse(0, 12, 28, 10, 0x000000, 0.4);
-    this.add(this.shadowSprite);
+    this.shadowSprite = this.scene.add.ellipse(0, 17, 30, 11, 0x000000, 0.45);
+    this.classRing = this.scene.add.ellipse(0, 16, 34, 14, this.classData.color, 0.42)
+      .setStrokeStyle(1, this.classData.color, 0.8);
+    this.bodySprite = this.scene.add.sprite(0, 0, 'player', 0).setDisplaySize(48, 48);
+    this.add([this.shadowSprite, this.classRing, this.bodySprite]);
+  }
 
-    // Body Sprite
-    this.bodySprite = this.scene.add.image(0, 0, `player_${this.classData.id}`);
-    this.bodySprite.setDisplaySize(24, 36);
-    this.add(this.bodySprite);
+  get rank(): string {
+    return RANKS[Math.min(RANKS.length - 1, Math.max(0, this.stats.level - 1))];
   }
 
   setTransformed(transformed: boolean): void {
+    if (this.isTransformed === transformed) return;
     this.isTransformed = transformed;
+
     if (transformed) {
-      this.setScale(2.5);
-      this.bodySprite.setTexture('titan_normal');
-      this.bodySprite.setDisplaySize(48, 72);
-      this.stats.maxHp = this.classData.baseStats.hp + 400;
-      this.stats.hp = Math.min(this.stats.hp + 200, this.stats.maxHp);
+      this.humanMaxHp = this.stats.maxHp;
+      this.bodySprite.setTexture('titan_base', 0).setDisplaySize(112, 112);
+      this.classRing.setDisplaySize(78, 28).setFillStyle(0xff5a32, 0.38);
+      this.shadowSprite.setDisplaySize(82, 25).setY(38);
+      this.stats.maxHp = this.humanMaxHp + 400;
+      this.stats.hp = Math.min(this.stats.maxHp, this.stats.hp + 240);
       this.transformTimer = 30;
-      // Slower in titan form
+      this.body.setSize(68, 58).setOffset(-34, -12);
     } else {
-      this.setScale(1);
-      this.bodySprite.setTexture(`player_${this.classData.id}`);
-      this.bodySprite.setDisplaySize(24, 36);
-      this.stats.maxHp = this.classData.baseStats.hp;
-      if (this.stats.hp > this.stats.maxHp) this.stats.hp = this.stats.maxHp;
+      this.bodySprite.setTexture('player', 0).setDisplaySize(48, 48);
+      this.classRing.setDisplaySize(34, 14).setFillStyle(this.classData.color, 0.42);
+      this.shadowSprite.setDisplaySize(30, 11).setY(17);
+      this.stats.maxHp = this.humanMaxHp;
+      this.stats.hp = Math.min(this.stats.hp, this.stats.maxHp);
+      this.body.setSize(28, 28).setOffset(-14, -7);
     }
   }
 
   setFacing(angle: number): void {
-    this.facing = angle;
-    // We can flip the sprite based on angle if it's moving left/right
-    if (angle > 90 && angle < 270) {
-      this.bodySprite.setFlipX(true);
-    } else {
-      this.bodySprite.setFlipX(false);
+    this.facing = Phaser.Math.Angle.WrapDegrees(angle);
+  }
+
+  updateMovementAnimation(vx: number, vy: number): void {
+    if (this.isDead) {
+      this.bodySprite.stop();
+      return;
     }
+
+    const texture = this.isTransformed ? 'titan_base' : 'player';
+    if (vx === 0 && vy === 0) {
+      this.bodySprite.stop();
+      return;
+    }
+
+    let direction = 'down';
+    if (Math.abs(vx) > Math.abs(vy)) direction = vx < 0 ? 'left' : 'right';
+    else direction = vy < 0 ? 'up' : 'down';
+    this.bodySprite.play(`${texture}_${direction}`, true);
   }
 
   takeDamage(amount: number): number {
     if (this.isDead || this.isInvulnerable) return 0;
     const reduced = Math.max(1, amount - this.stats.defense);
     this.stats.hp = Math.max(0, this.stats.hp - reduced);
-
-    // Flash red
-    this.bodySprite.setTint(0xFF0000);
-    this.scene.time.delayedCall(150, () => {
-      if (!this.isDead) {
-        this.bodySprite.clearTint();
-      }
+    this.bodySprite.setTint(0xff5555);
+    this.scene.time.delayedCall(130, () => {
+      if (!this.isDead) this.bodySprite.clearTint();
     });
-
-    if (this.stats.hp <= 0) {
-      this.die();
-    }
+    if (this.stats.hp <= 0) this.die();
     return reduced;
   }
 
   heal(amount: number): void {
-    this.stats.hp = Math.min(this.stats.maxHp, this.stats.hp + amount);
+    if (!this.isDead) this.stats.hp = Math.min(this.stats.maxHp, this.stats.hp + amount);
   }
 
   gainResource(amount: number): void {
@@ -137,52 +161,70 @@ export class Player extends Phaser.GameObjects.Container {
     return true;
   }
 
+  useBlades(amount: number): boolean {
+    if (this.classData.id !== 'scout') return true;
+    if (this.blades < amount) return false;
+    this.blades = Math.max(0, this.blades - amount);
+    return true;
+  }
+
+  resupply(): void {
+    if (this.classData.id !== 'titan_shifter') this.stats.resource = this.stats.maxResource;
+    if (this.classData.id === 'scout') this.blades = this.maxBlades;
+  }
+
   gainXp(amount: number): boolean {
     if (this.stats.level >= 10) return false;
     this.stats.xp += amount;
-    if (this.stats.xp >= this.stats.xpToNext) {
+    let leveledUp = false;
+    while (this.stats.level < 10 && this.stats.xp >= this.stats.xpToNext) {
+      this.stats.xp -= this.stats.xpToNext;
       this.levelUp();
-      return true;
+      leveledUp = true;
     }
-    return false;
+    return leveledUp;
   }
 
   private levelUp(): void {
-    this.stats.xp -= this.stats.xpToNext;
     this.stats.level++;
     const hpGain = 20 + this.stats.level * 5;
-    this.stats.maxHp += hpGain;
+    this.humanMaxHp += hpGain;
+    this.stats.maxHp = this.isTransformed ? this.humanMaxHp + 400 : this.humanMaxHp;
     this.stats.hp = this.stats.maxHp;
     this.stats.attack += 3;
     this.stats.defense += 2;
-    if (this.stats.level < 10) {
-      this.stats.xpToNext = getXpForNextLevel(this.stats.level);
-    } else {
-      this.stats.xpToNext = 0;
-    }
+    this.stats.xpToNext = this.stats.level < 10 ? getXpForNextLevel(this.stats.level) : 0;
   }
 
   private die(): void {
     this.isDead = true;
-    this.isTransformed = false;
-    this.setScale(1);
+    if (this.isTransformed) this.setTransformed(false);
     this.setAlpha(0.4);
-    if (this.body) this.body.setVelocity(0, 0);
+    this.body.setVelocity(0, 0);
+    this.bodySprite.stop();
+  }
+
+  applyDeathPenalty(): { xpLost: number; goldLost: number } {
+    const xpLost = Math.floor(this.stats.xp * 0.1);
+    const goldLost = Math.floor(this.stats.gold * 0.1);
+    this.stats.xp = Math.max(0, this.stats.xp - xpLost);
+    this.stats.gold = Math.max(0, this.stats.gold - goldLost);
+    return { xpLost, goldLost };
   }
 
   respawn(x: number, y: number): void {
     this.isDead = false;
-    this.setPosition(x, y);
-    this.setAlpha(1);
+    this.setPosition(x, y).setAlpha(1);
     this.stats.hp = this.stats.maxHp;
+    this.resupply();
     this.isInvulnerable = true;
     this.invulnerableTimer = 3;
     this.bodySprite.clearTint();
+    this.body.enable = true;
   }
 
   addFury(amount: number): void {
-    if (this.classData.id !== 'titan_shifter') return;
-    this.stats.resource = Math.min(this.stats.maxResource, this.stats.resource + amount);
+    if (this.classData.id === 'titan_shifter' && !this.isTransformed) this.gainResource(amount);
   }
 
   gainGold(amount: number): void {
@@ -191,10 +233,9 @@ export class Player extends Phaser.GameObjects.Container {
 
   update(delta: number): void {
     const dt = delta / 1000;
-
     if (this.isInvulnerable) {
       this.invulnerableTimer -= dt;
-      this.setAlpha(Math.sin(this.invulnerableTimer * 20) > 0 ? 1 : 0.5);
+      this.setAlpha(Math.sin(this.invulnerableTimer * 20) > 0 ? 1 : 0.55);
       if (this.invulnerableTimer <= 0) {
         this.isInvulnerable = false;
         this.setAlpha(1);
@@ -209,31 +250,37 @@ export class Player extends Phaser.GameObjects.Container {
       }
     }
 
-    // Resource regen (not fury)
     if (this.classData.id !== 'titan_shifter' && !this.isDead) {
-      const regenRate = this.classData.resource.regenRate;
-      if (regenRate > 0) {
-        this.stats.resource = Math.min(
-          this.stats.maxResource,
-          this.stats.resource + regenRate * dt
-        );
-      }
+      this.gainResource(this.classData.resource.regenRate * dt);
     }
   }
 
   getAttackDamage(): number {
-    const base = this.stats.attack;
-    if (this.isTransformed) return base * 3;
-    return base;
+    return this.stats.attack * (this.isTransformed ? 3 : 1);
   }
 
-  isAttackingFromBehind(targetX: number, targetY: number, targetFacing: number): boolean {
-    // Angle from target to attacker
-    const angleToAttacker = Phaser.Math.RadToDeg(
-      Phaser.Math.Angle.Between(targetX, targetY, this.x, this.y)
-    );
-    let diff = Math.abs(angleToAttacker - targetFacing);
-    if (diff > 180) diff = 360 - diff;
-    return diff < 60; // Attacker is behind target if the angle from target to attacker is close to target's facing direction going backwards
+  toSnapshot(): PlayerSnapshot {
+    const savedStats = {
+      ...this.stats,
+      hp: Math.min(this.stats.hp, this.humanMaxHp),
+      maxHp: this.humanMaxHp
+    };
+    return {
+      stats: savedStats,
+      blades: this.blades,
+      x: this.x,
+      y: this.y
+    };
+  }
+
+  restore(snapshot: PlayerSnapshot): void {
+    this.stats = { ...snapshot.stats };
+    this.blades = snapshot.blades ?? this.maxBlades;
+    this.humanMaxHp = this.stats.maxHp;
+    this.setPosition(snapshot.x, snapshot.y);
+    if (this.stats.hp <= 0) {
+      this.stats.hp = this.stats.maxHp;
+      this.setPosition(960, 576);
+    }
   }
 }
