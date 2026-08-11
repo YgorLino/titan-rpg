@@ -5,7 +5,7 @@ export class NPC extends Phaser.GameObjects.Container {
   npcId: string;
   npcName: string;
   dialog: string[];
-  private bodySprite!: Phaser.GameObjects.Image;
+  private bodySprite!: Phaser.GameObjects.Sprite;
   private nameLabel!: Phaser.GameObjects.Text;
   private interactHint!: Phaser.GameObjects.Text;
   isNearPlayer: boolean = false;
@@ -32,14 +32,8 @@ export class NPC extends Phaser.GameObjects.Container {
   }
 
   private createVisuals(color: number): void {
-    // Map NPC id to texture
-    let texture = 'npc_levi';
-    if (this.npcId === 'priest' || this.npcId === 'priest_npc') texture = 'npc_priest';
-    if (this.npcId === 'blacksmith') texture = 'npc_blacksmith';
-
-    // Body Sprite
-    this.bodySprite = this.scene.add.image(0, 0, texture);
-    this.bodySprite.setDisplaySize(20, 32);
+    this.bodySprite = this.scene.add.sprite(0, 0, 'npc', 0).setDisplaySize(48, 48);
+    this.bodySprite.setTint(color);
     this.add(this.bodySprite);
 
     // Name label above NPC
