@@ -17,6 +17,7 @@ export interface MonsterData {
   color: number;
   headColor: number;
   weaknessMultiplier: number; // damage mult from behind
+  boss?: boolean;
 }
 
 export const MONSTERS: Record<string, MonsterData> = {
@@ -53,5 +54,23 @@ export const MONSTERS: Record<string, MonsterData> = {
     color: 0xB8860B,
     headColor: 0xA0740A,
     weaknessMultiplier: 1.5
+  },
+  titan_colossal: {
+    id: 'titan_colossal',
+    name: 'Titã Colossal',
+    hp: 2400,
+    attack: 72,
+    defense: 16,
+    speed: 38,
+    detectionRange: 520,
+    attackRange: 95,
+    attackCooldown: 3.2,
+    xpReward: 1200,
+    width: 132,
+    height: 190,
+    color: 0x9b1f18,
+    headColor: 0xc8432f,
+    weaknessMultiplier: 2,
+    boss: true
   }
 };
