@@ -23,12 +23,18 @@
       }
       #game-container {
         position: relative;
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
         display: flex;
         justify-content: center;
         align-items: center;
+        overflow: hidden;
       }
       canvas {
         display: block;
+        max-width: 100% !important;
+        max-height: 100% !important;
         image-rendering: pixelated;
         image-rendering: crisp-edges;
       }

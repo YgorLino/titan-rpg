@@ -35,10 +35,13 @@ npm run preview
 
 ## Conteúdo da versão jogável
 
+- Seleção cinematográfica com splash art exclusiva para cada uma das cinco vocações.
+- Direção visual dark fantasy, novos Titãs ilustrados e transformação de assalto exclusiva do jogador.
+- Terreno contínuo redesenhado e interface responsiva que permanece inteira em qualquer janela.
 - Cinco vocações: Portador de Titã, Tropa de Exploração, Pastor das Muralhas, Atirador da Guarnição e Engenheiro de Campo.
 - Combate pela nuca, equipamento ODM, Gás, durabilidade das Lâminas, armas à distância, cura e construções.
 - Transformação em Titã com Fúria e conjunto próprio de habilidades.
-- Distrito de Shiganshina, rota de expedição e dungeon da Floresta das Árvores Gigantes.
+- Distrito de Shiganshina, rota de expedição e Floresta das Árvores Gigantes.
 - Titãs normais, Excêntricos e o chefe Titã Colossal.
 - Missões encadeadas, níveis, patentes militares, moedas e salvamento automático no navegador.
 - Penalidade de morte de 10% do XP atual e das moedas.

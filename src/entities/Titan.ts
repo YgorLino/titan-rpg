@@ -13,7 +13,7 @@ export class Titan extends Phaser.GameObjects.Container {
   stunnedTimer = 0;
   tauntedTimer = 0;
 
-  private bodySprite!: Phaser.GameObjects.Sprite;
+  private bodySprite!: Phaser.GameObjects.Image;
   private napeIndicator!: Phaser.GameObjects.Ellipse;
   private shadowSprite!: Phaser.GameObjects.Ellipse;
   private hpBar!: Phaser.GameObjects.Graphics;
@@ -41,8 +41,13 @@ export class Titan extends Phaser.GameObjects.Container {
   private createVisuals(): void {
     const d = this.monsterData;
     this.shadowSprite = this.scene.add.ellipse(0, d.height * 0.36, d.width * 0.85, d.width * 0.25, 0x000000, 0.38);
-    this.bodySprite = this.scene.add.sprite(0, 0, 'titan_base', 0)
-      .setDisplaySize(d.width, d.height).setTint(d.color);
+    const texture = d.id === 'titan_aberrant'
+      ? 'titan_aberrant_art'
+      : d.id === 'titan_colossal'
+        ? 'titan_colossal_art'
+        : 'titan_normal_art';
+    this.bodySprite = this.scene.add.image(0, 0, texture)
+      .setDisplaySize(d.width * 1.16, d.height * 1.16);
     this.napeIndicator = this.scene.add.ellipse(0, -d.height * 0.27, d.boss ? 18 : 10, d.boss ? 18 : 10, 0xff3b1f, 0.95)
       .setStrokeStyle(2, 0xffd27a, 0.85);
     this.hpBar = this.scene.add.graphics();
@@ -87,7 +92,10 @@ export class Titan extends Phaser.GameObjects.Container {
     this.drawHpBar();
     this.bodySprite.setTintFill(0xffffff);
     this.scene.time.delayedCall(100, () => {
-      if (this.state !== 'dead') this.bodySprite.setTint(this.state === 'stunned' ? 0x6d72ba : this.monsterData.color);
+      if (this.state !== 'dead') {
+        if (this.state === 'stunned') this.bodySprite.setTint(0x6d72ba);
+        else this.bodySprite.clearTint();
+      }
     });
     if (this.hp <= 0) this.die();
     return damage;
@@ -97,7 +105,7 @@ export class Titan extends Phaser.GameObjects.Container {
     if (this.state === 'dead' || this.monsterData.boss) return;
     this.state = 'stunned';
     this.stunnedTimer = duration;
-    this.bodySprite.stop().setTint(0x6d72ba);
+    this.bodySprite.setTint(0x6d72ba);
     this.body.setVelocity(0, 0);
   }
 
@@ -106,7 +114,6 @@ export class Titan extends Phaser.GameObjects.Container {
     this.napeIndicator.setVisible(false);
     this.body.setVelocity(0, 0);
     this.body.enable = false;
-    this.bodySprite.stop();
     this.scene.events.emit('titan_died', this);
     this.scene.tweens.add({
       targets: this,
@@ -127,7 +134,7 @@ export class Titan extends Phaser.GameObjects.Container {
       this.stunnedTimer -= dt;
       if (this.stunnedTimer <= 0) {
         this.state = 'idle';
-        this.bodySprite.setTint(this.monsterData.color);
+        this.bodySprite.clearTint();
       }
       return;
     }
@@ -142,12 +149,13 @@ export class Titan extends Phaser.GameObjects.Container {
     if (this.state === 'chase') {
       const angle = Phaser.Math.Angle.Between(this.x, this.y, playerX, playerY);
       this.body.setVelocity(Math.cos(angle) * this.monsterData.speed, Math.sin(angle) * this.monsterData.speed);
-      const horizontal = Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle));
-      const direction = horizontal ? (Math.cos(angle) < 0 ? 'left' : 'right') : (Math.sin(angle) < 0 ? 'up' : 'down');
-      this.bodySprite.play(`titan_base_${direction}`, true);
+      this.bodySprite.setFlipX(Math.cos(angle) > 0);
+      this.bodySprite.setY(Math.sin(this.scene.time.now / 85) * 2);
+      this.bodySprite.setAngle(Math.sin(this.scene.time.now / 150) * 1.3);
     } else {
       this.body.setVelocity(0, 0);
-      this.bodySprite.stop();
+      this.bodySprite.setY(Math.sin(this.scene.time.now / 420) * 0.8);
+      this.bodySprite.setAngle(0);
     }
 
     this.attackCooldownTimer = Math.max(0, this.attackCooldownTimer - dt);

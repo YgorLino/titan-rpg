@@ -168,12 +168,14 @@ export class WorldScene extends Phaser.Scene {
 
   private drawWorld(): void {
     this.add.tileSprite(WORLD_W / 2, CITY_END / 2, WORLD_W, CITY_END, 'stone_floor').setDepth(0);
-    this.add.tileSprite(WORLD_W / 2, (CITY_END + WORLD_H) / 2, WORLD_W, WORLD_H - CITY_END, 'grass').setDepth(0);
+    this.add.tileSprite(WORLD_W / 2, (CITY_END + FIELD_END) / 2, WORLD_W, FIELD_END - CITY_END, 'field_ground').setDepth(0);
+    this.add.tileSprite(WORLD_W / 2, (FIELD_END + WORLD_H) / 2, WORLD_W, WORLD_H - FIELD_END, 'forest_ground').setDepth(0);
 
     for (let row = 0; row < FIELD_H + FOREST_H; row++) {
       const center = Math.floor(MAP_W / 2 + Math.sin(row / 7) * 4);
       for (let offset = -2; offset <= 2; offset++) {
-        this.add.image((center + offset) * TILE + TILE / 2, CITY_END + row * TILE + TILE / 2, 'dirt').setDepth(1);
+        this.add.image((center + offset) * TILE + TILE / 2, CITY_END + row * TILE + TILE / 2, 'path_ground')
+          .setDisplaySize(TILE, TILE).setDepth(1);
       }
     }
 
@@ -260,7 +262,7 @@ export class WorldScene extends Phaser.Scene {
 
   private drawGiantForest(): void {
     this.add.rectangle(WORLD_W / 2, FIELD_END + 5, WORLD_W, 10, 0x40231c).setDepth(3);
-    this.add.text(GATE_X, FIELD_END + 34, 'DUNGEON • FLORESTA DAS ÁRVORES GIGANTES', {
+    this.add.text(GATE_X, FIELD_END + 34, 'FLORESTA DAS ÁRVORES GIGANTES', {
       fontSize: '15px', color: '#ffcb85', fontStyle: 'bold', stroke: '#000', strokeThickness: 4
     }).setOrigin(0.5).setDepth(20);
 
@@ -685,7 +687,7 @@ export class WorldScene extends Phaser.Scene {
     const labels: Record<ZoneId, [string, string]> = {
       city: ['DISTRITO DE SHIGANSHINA • DENTRO DAS MURALHAS', '#d5e6f4'],
       field: ['ROTA DE EXPEDIÇÃO • TERRITÓRIO DOS TITÃS', '#ffb37b'],
-      forest: ['DUNGEON • FLORESTA DAS ÁRVORES GIGANTES', '#ffe08a']
+      forest: ['FLORESTA DAS ÁRVORES GIGANTES', '#ffe08a']
     };
     this.zoneLabel.setText(labels[zone][0]).setColor(labels[zone][1]);
     this.cameras.main.flash(220, zone === 'forest' ? 92 : 35, zone === 'city' ? 80 : 35, 35);

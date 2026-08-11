@@ -1,10 +1,26 @@
-// src/scenes/CharacterCreationScene.ts
 import Phaser from 'phaser';
-import { CLASSES, ClassData, ClassId } from '../data/classes';
+import { CLASSES, ClassId } from '../data/classes';
+
+const CLASS_IDS = Object.keys(CLASSES) as ClassId[];
+
+const SPLASHES: Record<ClassId, string> = {
+  titan_shifter: 'splash_titan_shifter',
+  scout: 'splash_scout',
+  priest: 'splash_priest',
+  gunner: 'splash_gunner',
+  engineer: 'splash_engineer'
+};
 
 export class CharacterCreationScene extends Phaser.Scene {
-  private selectedClass: ClassId | null = null;
-  private classCards: Map<ClassId, Phaser.GameObjects.Container> = new Map();
+  private selectedClass: ClassId = 'titan_shifter';
+  private splash!: Phaser.GameObjects.Image;
+  private classTabs = new Map<ClassId, Phaser.GameObjects.Container>();
+  private classIndexText!: Phaser.GameObjects.Text;
+  private nameText!: Phaser.GameObjects.Text;
+  private roleText!: Phaser.GameObjects.Text;
+  private descriptionText!: Phaser.GameObjects.Text;
+  private statTexts: Phaser.GameObjects.Text[] = [];
+  private skillTexts: Phaser.GameObjects.Text[] = [];
   private confirmBtn!: Phaser.GameObjects.Container;
 
   constructor() {
@@ -15,219 +31,163 @@ export class CharacterCreationScene extends Phaser.Scene {
     const W = this.scale.width;
     const H = this.scale.height;
 
-    // Dark background with subtle texture
-    this.add.rectangle(W / 2, H / 2, W, H, 0x080810);
+    this.cameras.main.setBackgroundColor('#080a0b');
+    this.splash = this.add.image(W / 2, H / 2, SPLASHES[this.selectedClass])
+      .setDisplaySize(H * (16 / 9), H);
 
-    // Top border decoration
-    this.add.rectangle(W / 2, 0, W, 4, 0x880000);
+    this.add.rectangle(W / 2, H / 2, W, H, 0x07090b, 0.18);
+    this.add.rectangle(0, 0, 438, H, 0x06090d, 0.88).setOrigin(0, 0);
+    this.add.rectangle(438, 0, 150, H, 0x06090d, 0.34).setOrigin(0, 0);
+    this.add.rectangle(W / 2, 0, W, 74, 0x050607, 0.68).setOrigin(0.5, 0);
+    this.add.rectangle(W / 2, H - 98, W, 98, 0x050607, 0.92).setOrigin(0.5, 0);
+    this.add.rectangle(0, 0, 5, H, 0xa51f16).setOrigin(0, 0);
 
-    // Title
-    this.add.text(W / 2, 28, 'ESCOLHA SUA CLASSE', {
-      fontSize: '28px',
-      color: '#CC2200',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 5
-    }).setOrigin(0.5, 0.5);
-
-    this.add.text(W / 2, 58, 'Cada classe possui habilidades únicas e papel diferente no combate', {
-      fontSize: '11px',
-      color: '#887766',
-      stroke: '#000000',
-      strokeThickness: 2
-    }).setOrigin(0.5, 0.5);
-
-    // Create class cards
-    const classIds = Object.keys(CLASSES) as ClassId[];
-    const cardW = 148;
-    const cardH = 310;
-    const padding = 16;
-    const totalW = classIds.length * (cardW + padding) - padding;
-    const startX = (W - totalW) / 2;
-    const cardY = H / 2 - 20;
-
-    classIds.forEach((classId, index) => {
-      const classData = CLASSES[classId];
-      const x = startX + index * (cardW + padding) + cardW / 2;
-      const card = this.createClassCard(x, cardY, cardW, cardH, classData);
-      this.classCards.set(classId, card);
+    this.add.text(28, 24, 'TITAN RPG', {
+      fontSize: '13px', color: '#d7492e', fontStyle: 'bold', letterSpacing: 3,
+      stroke: '#000000', strokeThickness: 3
+    });
+    this.add.text(28, 47, 'ESCOLHA SUA VOCAÇÃO', {
+      fontSize: '10px', color: '#c5b69d', letterSpacing: 2,
+      stroke: '#000000', strokeThickness: 2
     });
 
-    // Confirm button
-    this.confirmBtn = this.createConfirmButton(W / 2, H - 40);
+    this.classIndexText = this.add.text(28, 94, '', {
+      fontSize: '10px', color: '#a7967d', fontStyle: 'bold', letterSpacing: 2
+    });
+    this.nameText = this.add.text(28, 119, '', {
+      fontSize: '31px', color: '#ffffff', fontStyle: 'bold',
+      stroke: '#000000', strokeThickness: 5, wordWrap: { width: 388 }
+    });
+    this.roleText = this.add.text(28, 161, '', {
+      fontSize: '12px', color: '#eabf87', fontStyle: 'bold', letterSpacing: 1,
+      stroke: '#000000', strokeThickness: 3
+    });
+    this.descriptionText = this.add.text(28, 194, '', {
+      fontSize: '11px', color: '#ded7cc', lineSpacing: 5,
+      stroke: '#000000', strokeThickness: 2, wordWrap: { width: 370 }
+    });
 
-    // Instructions
-    this.add.text(W / 2, H - 18, 'Clique em uma classe para selecionar, depois clique em Confirmar', {
-      fontSize: '9px',
-      color: '#555566',
-      stroke: '#000000',
-      strokeThickness: 1
-    }).setOrigin(0.5, 0.5);
+    this.add.text(28, 286, 'ATRIBUTOS', {
+      fontSize: '9px', color: '#8c8172', fontStyle: 'bold', letterSpacing: 2
+    });
+    for (let i = 0; i < 4; i++) {
+      this.statTexts.push(this.add.text(28 + (i % 2) * 174, 310 + Math.floor(i / 2) * 28, '', {
+        fontSize: '11px', color: '#f2e8d8', fontStyle: 'bold',
+        backgroundColor: '#111820', padding: { x: 9, y: 6 }
+      }));
+    }
 
-    // Auto-select first class
-    this.selectClass('titan_shifter');
+    this.add.text(28, 381, 'HABILIDADES INICIAIS', {
+      fontSize: '9px', color: '#8c8172', fontStyle: 'bold', letterSpacing: 2
+    });
+    for (let i = 0; i < 3; i++) {
+      this.skillTexts.push(this.add.text(28, 405 + i * 31, '', {
+        fontSize: '10px', color: '#e8dfd2', fontStyle: 'bold',
+        stroke: '#000000', strokeThickness: 2
+      }));
+    }
+
+    this.createClassTabs();
+    this.confirmBtn = this.createConfirmButton();
+    this.selectClass(this.selectedClass, false);
+
+    this.input.keyboard?.on('keydown-LEFT', () => this.stepClass(-1));
+    this.input.keyboard?.on('keydown-RIGHT', () => this.stepClass(1));
+    this.input.keyboard?.on('keydown-ENTER', () => this.confirmSelection());
   }
 
-  private createClassCard(
-    x: number,
-    y: number,
-    w: number,
-    h: number,
-    classData: ClassData
-  ): Phaser.GameObjects.Container {
-    const container = this.add.container(x, y);
+  private createClassTabs(): void {
+    const tabW = 132;
+    const gap = 7;
+    const startX = 18;
+    const y = this.scale.height - 75;
 
-    // Border (selected state)
-    const border = this.add.rectangle(0, 0, w + 4, h + 4, 0x333344).setOrigin(0.5, 0.5);
-
-    // Background
-    const bg = this.add.rectangle(0, 0, w, h, 0x141420, 1).setOrigin(0.5, 0.5);
-
-    // Class color stripe at top
-    const stripe = this.add.rectangle(0, -h / 2 + 4, w, 8, classData.color).setOrigin(0.5, 0);
-
-    // Avatar placeholder
-    const avatarBg = this.add.circle(0, -h / 2 + 50, 32, 0x222233);
-    const avatarBody = this.add.rectangle(0, -h / 2 + 55, 22, 28, classData.color);
-    const avatarHead = this.add.circle(0, -h / 2 + 38, 10, 0xFFCC99);
-
-    // Class name
-    const nameText = this.add.text(0, -h / 2 + 90, classData.name, {
-      fontSize: '11px',
-      color: '#' + classData.color.toString(16).padStart(6, '0'),
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 2,
-      align: 'center',
-      wordWrap: { width: w - 16 }
-    }).setOrigin(0.5, 0);
-
-    // Role badge
-    const roleText = this.add.text(0, -h / 2 + 116, classData.role, {
-      fontSize: '8px',
-      color: '#AAAACC',
-      stroke: '#000000',
-      strokeThickness: 1,
-      align: 'center'
-    }).setOrigin(0.5, 0);
-
-    // Divider
-    this.add.rectangle(0, -h / 2 + 136, w - 16, 1, 0x333344);
-
-    // Description
-    const descText = this.add.text(0, -h / 2 + 144, classData.description, {
-      fontSize: '8px',
-      color: '#999999',
-      align: 'center',
-      wordWrap: { width: w - 16 }
-    }).setOrigin(0.5, 0);
-
-    // Stats section
-    const statsY = -h / 2 + 206;
-    const stats = classData.baseStats;
-
-    const statLines = [
-      { label: 'HP', value: stats.hp, color: '#CC2222' },
-      { label: 'ATK', value: stats.attack, color: '#CC8800' },
-      { label: 'DEF', value: stats.defense, color: '#2288CC' },
-      { label: 'VEL', value: stats.speed, color: '#22CC66' }
-    ];
-
-    const statMaxValues = { HP: 200, ATK: 30, DEF: 20, VEL: 190 };
-    const statBarW = w - 24;
-
-    statLines.forEach((stat, i) => {
-      const sy = statsY + i * 22;
-      this.add.text(-w / 2 + 8, sy, stat.label, {
-        fontSize: '8px', color: '#AAAAAA'
+    CLASS_IDS.forEach((id, index) => {
+      const data = CLASSES[id];
+      const x = startX + index * (tabW + gap);
+      const tab = this.add.container(x, y);
+      const border = this.add.rectangle(0, 0, tabW, 58, 0x3c4147).setOrigin(0, 0);
+      const bg = this.add.rectangle(2, 2, tabW - 4, 54, 0x10151a, 0.96).setOrigin(0, 0)
+        .setInteractive({ useHandCursor: true });
+      const accent = this.add.rectangle(2, 2, 5, 54, data.color).setOrigin(0, 0);
+      const number = this.add.text(13, 8, `0${index + 1}`, {
+        fontSize: '9px', color: '#7f8790', fontStyle: 'bold'
       });
-      const maxV = statMaxValues[stat.label as keyof typeof statMaxValues] || 200;
-      const pct = Math.min(1, stat.value / maxV);
-
-      this.add.rectangle(-w / 2 + 8, sy + 12, statBarW, 6, 0x222233).setOrigin(0, 0);
-      this.add.rectangle(-w / 2 + 8, sy + 12, Math.floor(statBarW * pct), 6, Phaser.Display.Color.HexStringToColor(stat.color.replace('#', '')).color).setOrigin(0, 0);
+      const name = this.add.text(13, 23, data.name.toUpperCase(), {
+        fontSize: '8px', color: '#d8d5cf', fontStyle: 'bold',
+        wordWrap: { width: tabW - 22 }, lineSpacing: 2
+      });
+      bg.on('pointerdown', () => this.selectClass(id));
+      bg.on('pointerover', () => bg.setFillStyle(0x202931));
+      bg.on('pointerout', () => bg.setFillStyle(id === this.selectedClass ? 0x232c34 : 0x10151a, 0.96));
+      tab.add([border, bg, accent, number, name]);
+      this.classTabs.set(id, tab);
     });
-
-    // Resource label
-    const resText = this.add.text(0, h / 2 - 22, `Recurso: ${classData.resource.name}`, {
-      fontSize: '7px',
-      color: '#' + classData.resource.color.toString(16).padStart(6, '0'),
-      stroke: '#000000',
-      strokeThickness: 1,
-      align: 'center'
-    }).setOrigin(0.5, 1);
-
-    container.add([border, bg, stripe, avatarBg, avatarBody, avatarHead,
-      nameText, roleText, descText, resText]);
-
-    // Make interactive
-    bg.setInteractive({ useHandCursor: true });
-    bg.on('pointerdown', () => this.selectClass(classData.id));
-    bg.on('pointerover', () => {
-      if (this.selectedClass !== classData.id) {
-        bg.setFillStyle(0x1E1E2C);
-      }
-    });
-    bg.on('pointerout', () => {
-      if (this.selectedClass !== classData.id) {
-        bg.setFillStyle(0x141420);
-      }
-    });
-
-    return container;
   }
 
-  private selectClass(classId: ClassId): void {
+  private selectClass(classId: ClassId, animate = true): void {
     this.selectedClass = classId;
+    const data = CLASSES[classId];
+    const index = CLASS_IDS.indexOf(classId);
 
-    // Update card visuals
-    this.classCards.forEach((card, id) => {
-      const border = card.list[0] as Phaser.GameObjects.Rectangle;
-      const bg = card.list[1] as Phaser.GameObjects.Rectangle;
-      if (id === classId) {
-        border.setFillStyle(CLASSES[id].color);
-        bg.setFillStyle(0x1A1A2A);
-      } else {
-        border.setFillStyle(0x222233);
-        bg.setFillStyle(0x141420);
-      }
+    if (animate) {
+      this.splash.setAlpha(0.2).setTexture(SPLASHES[classId]);
+      this.tweens.add({ targets: this.splash, alpha: 1, duration: 260, ease: 'Sine.easeOut' });
+    } else {
+      this.splash.setTexture(SPLASHES[classId]).setAlpha(1);
+    }
+
+    this.classIndexText.setText(`VOCAÇÃO 0${index + 1}  /  0${CLASS_IDS.length}`);
+    this.nameText.setText(data.name.toUpperCase());
+    this.roleText.setText(`${data.role.toUpperCase()}  •  ${data.resource.name.toUpperCase()}`)
+      .setColor(`#${data.color.toString(16).padStart(6, '0')}`);
+    this.descriptionText.setText(data.description);
+
+    const stats = [
+      `VIDA   ${data.baseStats.hp}`,
+      `ATAQUE ${data.baseStats.attack}`,
+      `DEFESA ${data.baseStats.defense}`,
+      `VEL.   ${data.baseStats.speed}`
+    ];
+    this.statTexts.forEach((text, i) => text.setText(stats[i]));
+    this.skillTexts.forEach((text, i) => text.setText(`[${i + 1}]  ${data.skills[i].name}`));
+
+    this.classTabs.forEach((tab, id) => {
+      const border = tab.list[0] as Phaser.GameObjects.Rectangle;
+      const bg = tab.list[1] as Phaser.GameObjects.Rectangle;
+      border.setFillStyle(id === classId ? CLASSES[id].color : 0x3c4147);
+      bg.setFillStyle(id === classId ? 0x232c34 : 0x10151a, 0.96);
     });
 
-    // Update confirm button
-    const btnBg = this.confirmBtn.list[0] as Phaser.GameObjects.Rectangle;
-    btnBg.setFillStyle(CLASSES[classId].color);
-    const btnText = this.confirmBtn.list[1] as Phaser.GameObjects.Text;
-    btnText.setText(`▶ Jogar como ${CLASSES[classId].name}`);
+    const confirmBg = this.confirmBtn.list[0] as Phaser.GameObjects.Rectangle;
+    const confirmText = this.confirmBtn.list[1] as Phaser.GameObjects.Text;
+    confirmBg.setFillStyle(data.color);
+    confirmText.setText('ENTRAR NO MUNDO  ▶');
   }
 
-  private createConfirmButton(x: number, y: number): Phaser.GameObjects.Container {
+  private createConfirmButton(): Phaser.GameObjects.Container {
+    const x = this.scale.width - 129;
+    const y = this.scale.height - 46;
     const container = this.add.container(x, y);
-    const bg = this.add.rectangle(0, 0, 320, 32, 0x440000).setInteractive({ useHandCursor: true });
-    const text = this.add.text(0, 0, '▶ Selecione uma classe', {
-      fontSize: '13px',
-      color: '#FFFFFF',
-      fontStyle: 'bold',
-      stroke: '#000000',
-      strokeThickness: 3
-    }).setOrigin(0.5, 0.5);
-
-    bg.on('pointerover', () => bg.setFillStyle(0x660000));
-    bg.on('pointerout', () => {
-      bg.setFillStyle(this.selectedClass ? CLASSES[this.selectedClass].color : 0x440000);
-    });
+    const bg = this.add.rectangle(0, 0, 232, 58, 0x8b1d16).setInteractive({ useHandCursor: true });
+    const text = this.add.text(0, 0, 'ENTRAR NO MUNDO  ▶', {
+      fontSize: '11px', color: '#ffffff', fontStyle: 'bold', letterSpacing: 1,
+      stroke: '#000000', strokeThickness: 3
+    }).setOrigin(0.5);
+    bg.on('pointerover', () => container.setScale(1.025));
+    bg.on('pointerout', () => container.setScale(1));
     bg.on('pointerdown', () => this.confirmSelection());
-
     container.add([bg, text]);
     return container;
   }
 
-  private confirmSelection(): void {
-    if (!this.selectedClass) return;
+  private stepClass(direction: number): void {
+    const current = CLASS_IDS.indexOf(this.selectedClass);
+    this.selectClass(CLASS_IDS[Phaser.Math.Wrap(current + direction, 0, CLASS_IDS.length)]);
+  }
 
-    // Flash effect
-    this.cameras.main.flash(300, 200, 50, 50);
-    this.time.delayedCall(400, () => {
-      this.scene.start('WorldScene', { classId: this.selectedClass });
-    });
+  private confirmSelection(): void {
+    this.cameras.main.flash(260, 180, 55, 35);
+    this.time.delayedCall(320, () => this.scene.start('WorldScene', { classId: this.selectedClass }));
   }
 }

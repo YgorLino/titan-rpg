@@ -96,7 +96,7 @@ export class Player extends Phaser.GameObjects.Container {
 
     if (transformed) {
       this.humanMaxHp = this.stats.maxHp;
-      this.bodySprite.setTexture('titan_base', 0).setDisplaySize(112, 112);
+      this.bodySprite.stop().setTexture('player_titan_art').setDisplaySize(124, 124).setY(-5);
       this.classRing.setDisplaySize(78, 28).setFillStyle(0xff5a32, 0.38);
       this.shadowSprite.setDisplaySize(82, 25).setY(38);
       this.stats.maxHp = this.humanMaxHp + 400;
@@ -104,7 +104,7 @@ export class Player extends Phaser.GameObjects.Container {
       this.transformTimer = 30;
       this.body.setSize(68, 58).setOffset(-34, -12);
     } else {
-      this.bodySprite.setTexture('player', 0).setDisplaySize(48, 48);
+      this.bodySprite.stop().setTexture('player', 0).setDisplaySize(48, 48).setY(0).setAngle(0).setFlipX(false);
       this.classRing.setDisplaySize(34, 14).setFillStyle(this.classData.color, 0.42);
       this.shadowSprite.setDisplaySize(30, 11).setY(17);
       this.stats.maxHp = this.humanMaxHp;
@@ -123,7 +123,15 @@ export class Player extends Phaser.GameObjects.Container {
       return;
     }
 
-    const texture = this.isTransformed ? 'titan_base' : 'player';
+    if (this.isTransformed) {
+      this.bodySprite.stop();
+      if (vx !== 0) this.bodySprite.setFlipX(vx > 0);
+      const moving = vx !== 0 || vy !== 0;
+      this.bodySprite.setY(-5 + Math.sin(this.scene.time.now / (moving ? 85 : 380)) * (moving ? 2 : 0.8));
+      this.bodySprite.setAngle(moving ? Math.sin(this.scene.time.now / 150) * 1.1 : 0);
+      return;
+    }
+
     if (vx === 0 && vy === 0) {
       this.bodySprite.stop();
       return;
@@ -132,7 +140,7 @@ export class Player extends Phaser.GameObjects.Container {
     let direction = 'down';
     if (Math.abs(vx) > Math.abs(vy)) direction = vx < 0 ? 'left' : 'right';
     else direction = vy < 0 ? 'up' : 'down';
-    this.bodySprite.play(`${texture}_${direction}`, true);
+    this.bodySprite.play(`player_${direction}`, true);
   }
 
   takeDamage(amount: number): number {
