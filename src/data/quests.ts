@@ -74,5 +74,23 @@ export const QUESTS: Record<string, QuestData> = {
     goldReward: 250,
     startDialog: 'Recebemos relatos de um Titã com comportamento anômalo — um Excêntrico.\nEles são rápidos e imprevisíveis. Encontre-o e elimine-o antes que cause um desastre.',
     completionDialog: 'Você derrubou um Excêntrico sozinho? Nada mau.\nParece que você não é só conversa. Aqui está seu pagamento.'
+  },
+  forest_dungeon: {
+    id: 'forest_dungeon',
+    name: 'Além das Árvores Gigantes',
+    description: 'Atravesse a floresta, encontre as ruínas da antiga expedição e elimine o Titã Colossal.',
+    npcId: 'captain',
+    objectives: [
+      {
+        type: 'kill',
+        target: 'titan_colossal',
+        count: 1,
+        current: 0
+      }
+    ],
+    xpReward: 1500,
+    goldReward: 700,
+    startDialog: 'Uma patrulha desapareceu na Floresta das Árvores Gigantes.\nOs sinalizadores indicam algo muito maior do que um Excêntrico.\nAtravesse as ruínas e elimine o Titã Colossal.',
+    completionDialog: 'A fumaça cessou... Você voltou da floresta.\nHoje a humanidade recuperou mais do que território: recuperou esperança.'
   }
 };
