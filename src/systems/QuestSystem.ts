@@ -9,6 +9,12 @@ export interface ActiveQuest {
   objectives: QuestObjective[];
 }
 
+export interface QuestSnapshot {
+  id: string;
+  status: QuestStatus;
+  objectives: QuestObjective[];
+}
+
 export class QuestSystem {
   private quests: Map<string, ActiveQuest> = new Map();
 
@@ -79,5 +85,26 @@ export class QuestSystem {
   isQuestReadyToTurnIn(questId: string): boolean {
     const quest = this.quests.get(questId);
     return quest?.status === 'objectives_done';
+  }
+
+  toSnapshot(): QuestSnapshot[] {
+    return Array.from(this.quests.entries()).map(([id, quest]) => ({
+      id,
+      status: quest.status,
+      objectives: quest.objectives.map(objective => ({ ...objective }))
+    }));
+  }
+
+  restore(snapshots: QuestSnapshot[]): void {
+    this.quests.clear();
+    snapshots.forEach(snapshot => {
+      const data = QUESTS[snapshot.id];
+      if (!data) return;
+      this.quests.set(snapshot.id, {
+        data,
+        status: snapshot.status,
+        objectives: snapshot.objectives.map(objective => ({ ...objective }))
+      });
+    });
   }
 }
